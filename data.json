@@ -341,5 +341,6 @@
   { "timestamp": "2026-06-07T19:00:00", "value": 1 },
   { "timestamp": "2026-06-07T22:00:00", "value": 2 },
   { "timestamp": "2026-06-08T09:00:00", "value": 2 },
-  { "timestamp": "2026-06-08T12:00:00", "value": 2 }
+  { "timestamp": "2026-06-08T12:00:00", "value": 2 },
+  { "timestamp": "2026-06-08T15:00:00", "value": 2 }
 ]
