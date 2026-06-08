@@ -660,3 +660,36 @@ init().catch(err => {
     emptyMsg.hidden = false;
     canvas.style.visibility = "hidden";
 });
+
+// ── Chart resize handles ──────────────────────────────────────────────────────
+
+document.querySelectorAll(".chart-resizer").forEach(resizer => {
+    resizer.addEventListener("mousedown", e => {
+        e.preventDefault();
+        const container = resizer.previousElementSibling;
+        const startY = e.clientY;
+        const startH = container.getBoundingClientRect().height;
+
+        resizer.classList.add("dragging");
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "row-resize";
+
+        function onMouseMove(e) {
+            const newH = Math.max(80, startH + e.clientY - startY);
+            container.style.height = newH + "px";
+            const chartInst = Chart.getChart(container.querySelector("canvas"));
+            if (chartInst) chartInst.resize();
+        }
+
+        function onMouseUp() {
+            resizer.classList.remove("dragging");
+            document.body.style.userSelect = "";
+            document.body.style.cursor = "";
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    });
+});
