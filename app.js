@@ -396,6 +396,7 @@ function render() {
         type: "bar",
         data: { labels, datasets },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             grouped: false,
@@ -583,6 +584,7 @@ function renderTod(filtered) {
         type: "line",
         data: { labels, datasets },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
