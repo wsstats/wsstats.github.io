@@ -411,6 +411,13 @@ function render() {
                     mode: "index",
                     intersect: false,
                     callbacks: {
+                        title(tooltipItems) {
+                            const label = tooltipItems[0]?.label ?? "";
+                            const dt = parseKey(label, finestType);
+                            if (finestType === "daily") return `${dt.toFormat("ccc")}, ${label}`;
+                            if (finestType === "weekly") return `${label} (${dt.toFormat("ccc dd MMM")})`;
+                            return label; // monthly
+                        },
                         label(ctx) {
                             const coarseIdx = ctx.dataset._coarseIdx;
                             if (coarseIdx != null) {
@@ -642,6 +649,15 @@ function renderTod(filtered) {
                     mode: "index",
                     intersect: false,
                     itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
+                    callbacks: {
+                        title(tooltipItems) {
+                            const label = tooltipItems[0]?.label ?? "";
+                            const dt = parseKey(label, finestType);
+                            if (finestType === "daily") return `${dt.toFormat("ccc")}, ${label}`;
+                            if (finestType === "weekly") return `${label} (${dt.toFormat("ccc dd MMM")})`;
+                            return label; // monthly
+                        },
+                    },
                 },
             },
             scales: {
