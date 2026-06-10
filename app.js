@@ -657,6 +657,10 @@ function renderTod(filtered) {
                             if (finestType === "weekly") return `${label} (${dt.toFormat("ccc dd MMM")})`;
                             return label; // monthly
                         },
+                        label(ctx) {
+                            if (!ctx.parsed.y) return null;
+                            return `${ctx.dataset.label}: ${ctx.parsed.y}`;
+                        },
                     },
                 },
             },
