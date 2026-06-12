@@ -75,8 +75,28 @@ h1 {
     transition: background 0.15s, color 0.15s;
 }
 
-.btn-group label:last-child {
+.btn-group label:last-child,
+.btn-group button:last-child {
     border-right: none;
+}
+
+.btn-group button {
+    padding: 0.25rem 0.7rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: #fff;
+    color: #444;
+    border: none;
+    border-right: 1px solid #ccc;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+    line-height: inherit;
+    font-family: inherit;
+}
+
+.btn-group button:hover {
+    background: #f0f4f8;
+    color: #222;
 }
 
 .btn-group input[type="checkbox"]:checked+label {

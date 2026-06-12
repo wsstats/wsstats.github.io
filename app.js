@@ -704,6 +704,25 @@ async function init() {
     // Wire controls
     dateFrom.addEventListener("change", render);
     dateTo.addEventListener("change", render);
+
+    document.getElementById("btn-ytd").addEventListener("click", () => {
+        const today = DateTime.now();
+        dateFrom.value = today.startOf("year").toISODate();
+        dateTo.value = today.toISODate();
+        render();
+    });
+    document.getElementById("btn-qtd").addEventListener("click", () => {
+        const today = DateTime.now();
+        dateFrom.value = today.startOf("quarter").toISODate();
+        dateTo.value = today.toISODate();
+        render();
+    });
+    document.getElementById("btn-mtd").addEventListener("click", () => {
+        const today = DateTime.now();
+        dateFrom.value = today.startOf("month").toISODate();
+        dateTo.value = today.toISODate();
+        render();
+    });
     cumsumBox.addEventListener("change", render);
     document.querySelectorAll('input[name="bucket"]').forEach(r =>
         r.addEventListener("change", () => {
