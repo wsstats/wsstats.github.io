@@ -11,11 +11,13 @@ const cumsumBox = document.getElementById("cumsum-toggle");
 const emptyMsg = document.getElementById("empty-msg");
 const canvas = document.getElementById("chart");
 const canvas2 = document.getElementById("chart2");
+const canvas3 = document.getElementById("chart3");
 
 // ── State ────────────────────────────────────────────────────────────────────
 let rawData = [];  // [{timestamp: string, value: number}, ...]
 let chart = null;
 let chart2 = null;
+let chart3 = null;
 let spanningBarsCfg = [];  // shared with spanningBarsPlugin
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -252,6 +254,7 @@ function render() {
         if (chart) { chart.destroy(); chart = null; }
         renderTable(filtered, fromVal, toVal);
         renderTod(filtered);
+        renderInterarrival(filtered);
         return;
     }
 
@@ -440,6 +443,7 @@ function render() {
     chart = new Chart(canvas, chartConfig);
     renderTable(filtered, fromVal, toVal);
     renderTod(filtered);
+    renderInterarrival(filtered);
     syncChartLayouts();
 }
 
@@ -455,8 +459,14 @@ function syncChartLayouts() {
     const ca2 = chart2.chartArea;
     if (!ca || !ca2) return;
 
-    const targetLeft = Math.max(ca.left, ca2.left);
-    const targetRight = Math.max(chart.width - ca.right, chart2.width - ca2.right);
+    const ca3 = chart3?.chartArea ?? null;
+
+    const targetLeft = Math.max(ca.left, ca2.left, ca3 ? ca3.left : 0);
+    const targetRight = Math.max(
+        chart.width - ca.right,
+        chart2.width - ca2.right,
+        ca3 ? chart3.width - ca3.right : 0
+    );
 
     const padL1 = Math.round(targetLeft - ca.left);
     const padR1 = Math.round(targetRight - (chart.width - ca.right));
@@ -473,6 +483,14 @@ function syncChartLayouts() {
     if (padL2 > 0 || padR2 > 0) {
         chart2.config.options.layout = { padding: { left: padL2, right: padR2 } };
         chart2.update("none");
+    }
+    if (ca3) {
+        const padL3 = Math.round(targetLeft - ca3.left);
+        const padR3 = Math.round(targetRight - (chart3.width - ca3.right));
+        if (padL3 > 0 || padR3 > 0) {
+            chart3.config.options.layout = { padding: { left: padL3, right: padR3 } };
+            chart3.update("none");
+        }
     }
 }
 
@@ -669,6 +687,91 @@ function renderTod(filtered) {
                     stacked: true,
                     beginAtZero: true,
                     title: { display: true, text: "Sum", font: { size: 11 } },
+                    grid: { color: "rgba(0,0,0,0.07)" },
+                    ticks: { font: { size: 11 } },
+                },
+            },
+        },
+    });
+}
+
+// ── Inter-arrival scatter plot ───────────────────────────────────────────────
+
+function renderInterarrival(filtered) {
+    if (chart3) { chart3.destroy(); chart3 = null; }
+    if (filtered.length < 2) return;
+
+    const sorted = [...filtered].sort((a, b) =>
+        parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
+    );
+
+    const points = [];
+    for (let i = 1; i < sorted.length; i++) {
+        const prev = parseTs(sorted[i - 1].timestamp);
+        const curr = parseTs(sorted[i].timestamp);
+        const gapHours = curr.diff(prev, "hours").hours;
+        points.push({ x: curr.toMillis(), y: gapHours });
+    }
+
+    // Pin x-axis to the same date extent as charts 1 & 2 (first data day → day after last).
+    const xMin = parseTs(sorted[0].timestamp).startOf("day").toMillis();
+    const xMax = parseTs(sorted[sorted.length - 1].timestamp).startOf("day").plus({ days: 1 }).toMillis();
+
+    // Build tick positions matching charts 1 & 2 (same bucket labels → same density & rotation).
+    const activeBuckets = getActiveBuckets();
+    const finestType = activeBuckets[0];
+    const finestFilled = fillGaps(bucket(filtered, finestType), finestType);
+    const tickValues = [...finestFilled.keys()].map(lbl => parseKey(lbl, finestType).toMillis());
+
+    chart3 = new Chart(canvas3, {
+        type: "scatter",
+        data: {
+            datasets: [{
+                label: "Time since previous entry (h)",
+                data: points,
+                backgroundColor: "rgba(99, 102, 241, 0.55)",
+                borderColor: "rgba(99, 102, 241, 0.9)",
+                borderWidth: 1,
+                pointRadius: 4,
+            }],
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const dt = DateTime.fromMillis(ctx.parsed.x);
+                            const h = ctx.parsed.y;
+                            return `${dt.toFormat("yyyy-MM-dd HH:mm")} — ${h.toFixed(1)} h`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    type: "linear",
+                    min: xMin,
+                    max: xMax,
+                    afterBuildTicks(scale) {
+                        scale.ticks = tickValues.map(v => ({ value: v }));
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        autoSkip: true,
+                        font: { size: 11 },
+                        callback(val) {
+                            return DateTime.fromMillis(val).toISODate();
+                        },
+                    },
+                    grid: { color: "rgba(0,0,0,0.05)" },
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Timegap (h)", font: { size: 11 } },
                     grid: { color: "rgba(0,0,0,0.07)" },
                     ticks: { font: { size: 11 } },
                 },
