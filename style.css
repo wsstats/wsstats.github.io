@@ -179,14 +179,28 @@ main {
     overflow-x: auto;
 }
 
-#stats-table {
+.table-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.55rem 0.75rem 0.2rem;
+    margin: 0;
+}
+
+#stats-table,
+#gap-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
+    table-layout: fixed;
 }
 
 #stats-table th,
-#stats-table td {
+#stats-table td,
+#gap-table th,
+#gap-table td {
     padding: 0.45rem 0.75rem;
     text-align: right;
     white-space: nowrap;
@@ -194,28 +208,56 @@ main {
 
 #stats-table th:nth-child(1),
 #stats-table th:nth-child(2),
-#stats-table td.col-label {
+#stats-table td.col-label,
+#gap-table th:nth-child(1),
+#gap-table th:nth-child(2),
+#gap-table td.col-label {
     text-align: left;
 }
 
-#stats-table thead th {
+#stats-table thead th,
+#gap-table thead th {
     background: #f0f4f8;
     font-weight: 600;
     border-bottom: 2px solid #ddd;
     color: #444;
 }
 
-#stats-table tbody tr:nth-child(even) {
+#stats-table tbody tr:nth-child(even),
+#gap-table tbody tr:nth-child(even) {
     background: #f9fafb;
 }
 
-#stats-table tbody tr:hover {
+#stats-table tbody tr:hover,
+#gap-table tbody tr:hover {
     background: #eef2ff;
 }
 
-#stats-table tbody td {
+#stats-table tbody td,
+#gap-table tbody td {
     border-bottom: 1px solid #eee;
     color: #333;
+}
+
+#stats-table .count,
+#gap-table .count {
+    font-size: 0.8em;
+    color: #888;
+}
+
+#stats-table tbody tr.year-total-row td,
+#gap-table tbody tr.year-total-row td {
+    border-top: 1px solid #ccc;
+    font-style: italic;
+    background: #f5f7fa;
+    color: #555;
+}
+
+#stats-table tbody tr.total-row td,
+#gap-table tbody tr.total-row td {
+    border-top: 2px solid #bbb;
+    font-weight: 600;
+    background: #f0f4f8;
 }
 
 /* Empty state */
