@@ -710,7 +710,7 @@ function renderInterarrival(filtered) {
         const prev = parseTs(sorted[i - 1].timestamp);
         const curr = parseTs(sorted[i].timestamp);
         const gapHours = curr.diff(prev, "hours").hours;
-        points.push({ x: curr.toMillis(), y: gapHours });
+        points.push({ x: curr.toMillis(), y: gapHours, v: sorted[i].value });
     }
 
     // Pin x-axis to the same date extent as charts 1 & 2 (first data day → day after last).
@@ -732,7 +732,8 @@ function renderInterarrival(filtered) {
                 backgroundColor: "rgba(99, 102, 241, 0.55)",
                 borderColor: "rgba(99, 102, 241, 0.9)",
                 borderWidth: 1,
-                pointRadius: 4,
+                pointRadius: points.map(p => 2 * p.v),
+                pointHoverRadius: points.map(p => 2 * p.v + 2),
             }],
         },
         options: {
@@ -744,9 +745,9 @@ function renderInterarrival(filtered) {
                 tooltip: {
                     callbacks: {
                         label(ctx) {
+                            const { v, y: h } = ctx.raw;
                             const dt = DateTime.fromMillis(ctx.parsed.x);
-                            const h = ctx.parsed.y;
-                            return `${dt.toFormat("yyyy-MM-dd HH:mm")} — ${h.toFixed(1)} h`;
+                            return `${v} @ ${dt.toFormat("yyyy-MM-dd HH:mm")} (${h.toFixed(1)} h)`;
                         },
                     },
                 },
