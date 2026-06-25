@@ -12,13 +12,16 @@ const emptyMsg = document.getElementById("empty-msg");
 const canvas = document.getElementById("chart");
 const canvas2 = document.getElementById("chart2");
 const canvas3 = document.getElementById("chart3");
+const canvas4 = document.getElementById("chart4");
 
 // ── State ────────────────────────────────────────────────────────────────────
 let rawData = [];  // [{timestamp: string, value: number}, ...]
 let chart = null;
 let chart2 = null;
 let chart3 = null;
+let chart4 = null;
 let spanningBarsCfg = [];  // shared with spanningBarsPlugin
+let heatmapCfg = null;     // shared with heatmapPlugin
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -255,6 +258,7 @@ function render() {
         renderTable(filtered, fromVal, toVal);
         renderTod(filtered);
         renderInterarrival(filtered);
+        renderIntensity(filtered);
         return;
     }
 
@@ -444,6 +448,7 @@ function render() {
     renderTable(filtered, fromVal, toVal);
     renderTod(filtered);
     renderInterarrival(filtered);
+    renderIntensity(filtered);
     syncChartLayouts();
 }
 
@@ -727,7 +732,7 @@ function renderInterarrival(filtered) {
         type: "scatter",
         data: {
             datasets: [{
-                label: "Time since previous entry (h)",
+                label: "Inter-event gap (h)",
                 data: points,
                 backgroundColor: "rgba(99, 102, 241, 0.55)",
                 borderColor: "rgba(99, 102, 241, 0.9)",
@@ -772,12 +777,190 @@ function renderInterarrival(filtered) {
                 },
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: "Time since previous entry (h)", font: { size: 11 } },
+                    title: { display: true, text: "Inter-event gap (h)", font: { size: 11 } },
                     grid: { color: "rgba(0,0,0,0.07)" },
                     ticks: { font: { size: 11 } },
                 },
             },
         },
+    });
+}
+
+// ── Intra-period intensity heatmap ───────────────────────────────────────────
+
+/**
+ * Heatmap chart showing how many events fall in each sub-period slot, with
+ * cell color reflecting the mean value at that slot.
+ *
+ * x-axis slot depends on finest active bucket:
+ *   daily   → hour of day  (0–23)
+ *   weekly  → day of week  (Mon–Sun)
+ *   monthly → day of month (1–31)
+ */
+/**
+ * Custom plugin: renders the heatmap cells for chart4.
+ * Reads config from the module-level `heatmapCfg` variable.
+ */
+const heatmapPlugin = {
+    id: "heatmap",
+    beforeDatasetsDraw(chart) {
+        if (!heatmapCfg) return;
+        const { cells, nX, nY, maxCount } = heatmapCfg;
+        if (!maxCount) return;
+
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        const ctx = chart.ctx;
+
+        // Cell dimensions — slots are uniformly spaced on both axes
+        const cellW = nX > 1
+            ? Math.abs(xScale.getPixelForValue(1) - xScale.getPixelForValue(0))
+            : xScale.width;
+        const cellH = nY > 1
+            ? Math.abs(yScale.getPixelForValue(1) - yScale.getPixelForValue(0))
+            : yScale.height;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(xScale.left, yScale.top, xScale.width, yScale.height);
+        ctx.clip();
+
+        for (let xi = 0; xi < nX; xi++) {
+            for (let yi = 0; yi < nY; yi++) {
+                const count = cells[xi][yi];
+                if (count === 0) continue;
+
+                const t = maxCount > 1 ? Math.log(count) / Math.log(maxCount) : 1;
+                const alpha = 0.12 + 0.83 * t;
+                const cx = xScale.getPixelForValue(xi);
+                const cy = yScale.getPixelForValue(yi);
+
+                ctx.fillStyle = `rgba(37, 99, 235, ${alpha.toFixed(3)})`;
+                ctx.fillRect(cx - cellW / 2, cy - cellH / 2, cellW, cellH);
+                ctx.strokeStyle = "rgba(0,0,0,0.07)";
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(cx - cellW / 2, cy - cellH / 2, cellW, cellH);
+            }
+        }
+
+        ctx.restore();
+    },
+};
+
+function renderIntensity(filtered) {
+    if (chart4) { chart4.destroy(); chart4 = null; }
+    heatmapCfg = null;
+    if (filtered.length === 0) return;
+
+    const activeBuckets = getActiveBuckets();
+    const finestType = activeBuckets[0];
+
+    let slotFn, xLabels, xTitle;
+    if (finestType === "daily") {
+        slotFn = dt => dt.hour;
+        xLabels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+        xTitle = "Hour of day";
+    } else if (finestType === "weekly") {
+        slotFn = dt => dt.weekday - 1;  // 0 = Mon … 6 = Sun
+        xLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        xTitle = "Day of week";
+    } else {
+        slotFn = dt => dt.day - 1;      // 0 = 1st … 30 = 31st
+        xLabels = Array.from({ length: 31 }, (_, i) => String(i + 1));
+        xTitle = "Day of month";
+    }
+
+    const nX = xLabels.length;
+
+    // Distinct y values sorted ascending; each becomes one row in the heatmap
+    const yValues = [...new Set(filtered.map(e => e.value))].sort((a, b) => a - b);
+    const nY = yValues.length;
+    const valueToIdx = new Map(yValues.map((v, i) => [v, i]));
+
+    // Count events per (xSlot, yIdx)
+    const cells = Array.from({ length: nX }, () => new Array(nY).fill(0));
+    let maxCount = 0;
+    for (const { timestamp, value } of filtered) {
+        const xi = slotFn(parseTs(timestamp));
+        const yi = valueToIdx.get(value);
+        if (yi === undefined) continue;
+        cells[xi][yi]++;
+        if (cells[xi][yi] > maxCount) maxCount = cells[xi][yi];
+    }
+
+    heatmapCfg = { cells, nX, nY, maxCount, xLabels, yValues };
+
+    // Points sit at cell centres for hit-testing / tooltips
+    const points = [];
+    for (let xi = 0; xi < nX; xi++) {
+        for (let yi = 0; yi < nY; yi++) {
+            if (cells[xi][yi] > 0)
+                points.push({ x: xi, y: yi, count: cells[xi][yi] });
+        }
+    }
+
+    chart4 = new Chart(canvas4, {
+        type: "scatter",
+        data: {
+            datasets: [{
+                data: points,
+                pointRadius: 0,
+                pointHitRadius: 12,
+            }],
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "nearest", intersect: true },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const { x: xi, y: yi, count } = ctx.raw;
+                            return `${xLabels[xi]}, value ${yValues[yi]}: ${count} event${count !== 1 ? "s" : ""}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    type: "linear",
+                    min: -0.5,
+                    max: nX - 0.5,
+                    title: { display: true, text: xTitle, font: { size: 11 } },
+                    afterBuildTicks(scale) {
+                        scale.ticks = Array.from({ length: nX }, (_, i) => ({ value: i }));
+                    },
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 45,
+                        font: { size: 11 },
+                        callback(val) { return xLabels[val] ?? ""; },
+                    },
+                    grid: { color: "rgba(0,0,0,0.05)" },
+                },
+                y: {
+                    type: "linear",
+                    min: -0.5,
+                    max: nY - 0.5,
+                    title: { display: true, text: "Value", font: { size: 11 } },
+                    afterBuildTicks(scale) {
+                        scale.ticks = yValues.map((_, i) => ({ value: i }));
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        callback(val) {
+                            const v = yValues[Math.round(val)];
+                            return v !== undefined ? v : "";
+                        },
+                    },
+                    grid: { color: "rgba(0,0,0,0.07)" },
+                },
+            },
+        },
+        plugins: [heatmapPlugin],
     });
 }
 
