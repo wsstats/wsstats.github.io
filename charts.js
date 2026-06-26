@@ -318,70 +318,82 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
     if (oldChart) oldChart.destroy();
     if (filtered.length < 2) return null;
 
+    const finestType = activeBuckets[0];
+
     const sorted = [...filtered].sort((a, b) =>
         parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
     );
 
-    const points = [];
+    // Group gap hours by the bucket of the later event
+    const gapsByBucket = new Map(); // Map<string, number[]>
     for (let i = 1; i < sorted.length; i++) {
         const prev = parseTs(sorted[i - 1].timestamp);
         const curr = parseTs(sorted[i].timestamp);
         const gapHours = curr.diff(prev, "hours").hours;
-        points.push({ x: curr.toMillis(), y: gapHours, v: sorted[i].value });
+        const key = bucketKey(curr, finestType);
+        if (!gapsByBucket.has(key)) gapsByBucket.set(key, []);
+        gapsByBucket.get(key).push(gapHours);
     }
 
-    const xMin = parseTs(sorted[0].timestamp).startOf("day").toMillis();
-    const xMax = parseTs(sorted[sorted.length - 1].timestamp).startOf("day").plus({ days: 1 }).toMillis();
-
-    const finestType = activeBuckets[0];
     const finestFilled = fillGaps(bucket(filtered, finestType), finestType);
-    const tickValues = [...finestFilled.keys()].map(lbl => parseKey(lbl, finestType).toMillis());
+    const labels = [...finestFilled.keys()];
+
+    const totalGaps = [...gapsByBucket.values()].reduce((s, a) => s + a.length, 0);
 
     return new Chart(canvas, {
-        type: "scatter",
+        type: "boxplot",
         data: {
+            labels,
             datasets: [{
                 label: "Inter-event gap (h)",
-                data: points,
-                backgroundColor: "rgba(99, 102, 241, 0.55)",
+                data: labels.map(lbl => gapsByBucket.get(lbl) ?? null),
+                backgroundColor: "rgba(99, 102, 241, 0.2)",
                 borderColor: "rgba(99, 102, 241, 0.9)",
                 borderWidth: 1,
-                pointRadius: points.map(p => 2 * p.v),
-                pointHoverRadius: points.map(p => 2 * p.v + 2),
+                medianColor: "rgba(99, 102, 241, 1.0)",
+                itemRadius: totalGaps > 300 ? 0 : 4,
+                itemBackgroundColor: "rgba(99, 102, 241, 0.55)",
+                itemBorderColor: "rgba(99, 102, 241, 0.9)",
+                itemBorderWidth: 0,
+                outlierRadius: 3,
+                outlierBackgroundColor: "rgba(239, 68, 68, 0.6)",
+                outlierBorderColor: "rgba(239, 68, 68, 0.9)",
             }],
         },
         options: {
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    mode: "index",
+                    intersect: false,
                     callbacks: {
+                        title(tooltipItems) {
+                            const label = tooltipItems[0]?.label ?? "";
+                            const dt = parseKey(label, finestType);
+                            if (finestType === "daily") return `${dt.toFormat("ccc")}, ${label}`;
+                            if (finestType === "weekly") return `${label} (${dt.toFormat("ccc dd MMM")})`;
+                            return label;
+                        },
                         label(ctx) {
-                            const { v, y: h } = ctx.raw;
-                            const dt = DateTime.fromMillis(ctx.parsed.x);
-                            return `${v} @ ${dt.toFormat("yyyy-MM-dd HH:mm")} (${h.toFixed(1)} h)`;
+                            const v = ctx.parsed;
+                            if (!v || v.median == null) return null;
+                            return [
+                                `Median: ${v.median.toFixed(1)} h`,
+                                `Mean: ${v.mean.toFixed(1)} h`,
+                                `IQR: ${v.q1.toFixed(1)} – ${v.q3.toFixed(1)} h`,
+                                `Range: ${v.min.toFixed(1)} – ${v.max.toFixed(1)} h`,
+                            ];
                         },
                     },
                 },
             },
             scales: {
                 x: {
-                    type: "linear",
-                    min: xMin,
-                    max: xMax,
-                    afterBuildTicks(scale) {
-                        scale.ticks = tickValues.map(v => ({ value: v }));
-                    },
-                    ticks: {
-                        maxRotation: 45,
-                        autoSkip: true,
-                        font: { size: 11 },
-                        callback(val) {
-                            return DateTime.fromMillis(val).toISODate();
-                        },
-                    },
+                    ticks: { maxRotation: 45, autoSkip: true, font: { size: 11 } },
                     grid: { color: "rgba(0,0,0,0.05)" },
                 },
                 y: {
