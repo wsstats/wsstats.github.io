@@ -46,7 +46,7 @@ const TOD_COLORS = TOD_HOURS.map((_, i) => ({
     border: _todColor(i, 0.9),
 }));
 
-//  Time-of-day stacked area chart (chart2)
+//  Time-of-day stacked area chart (chart1)
 
 /**
  * @param {Chart|null} oldChart
@@ -196,7 +196,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     });
 }
 
-//  Inter-arrival scatter plot (chart3)
+//  Inter-arrival box-and-whisker plot (chart3)
 
 /**
  * @param {Chart|null} oldChart
@@ -298,7 +298,7 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
     });
 }
 
-//  Intra-period intensity heatmap (chart4)
+//  Activity intensity over time heatmap (chart2)
 
 /**
  * @param {Chart|null} oldChart
@@ -426,7 +426,7 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
     });
 }
 
-//  Sum-frequency heatmap (chart5)
+//  Sum-frequency heatmap (chart4)
 
 export function renderSumFrequencyChart(oldChart, canvas, filtered, activeBuckets) {
     if (oldChart) oldChart.destroy();
