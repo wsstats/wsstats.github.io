@@ -1,22 +1,13 @@
 /* global luxon, Chart */
 
 import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucket } from "./utils.js";
-import { setSpanningBarsCfg, setHeatmapCfg, spanningBarsPlugin, heatmapPlugin } from "./plugins.js";
+import { setHeatmapCfg, heatmapPlugin } from "./plugins.js";
 
 const { DateTime } = luxon;
 
 //  Constants
 
 export const BUCKET_TYPES = ["daily", "weekly", "monthly"];
-
-const BUCKET_COLORS = {
-    daily: { bg: "rgba(59, 130, 246, 0.7)", border: "rgba(59, 130, 246, 1)" },
-    weekly: { bg: "rgba(245, 158, 11, 0.5)", border: "rgba(245, 158, 11, 0.9)" },
-    monthly: { bg: "rgba(16, 185, 129, 0.4)", border: "rgba(16, 185, 129, 0.85)" },
-};
-// Higher order → drawn first (behind); lower order → drawn on top
-const BUCKET_ORDER_N = { daily: 1, weekly: 2, monthly: 3 };
-const BUCKET_LABEL = { daily: "Daily", weekly: "Weekly", monthly: "Monthly" };
 
 const TOD_BUCKETS = ["00–06", "06–09", "09–12", "12–15", "15–18", "18–21", "21–24"];
 
@@ -30,75 +21,49 @@ const TOD_COLORS = [
     { bg: "rgba(124,  58, 237, 0.65)", border: "rgba(124,  58, 237, 0.9)" },  // 21-24 night
 ];
 
-//  Bar chart (chart1)
+//  Time-of-day stacked area chart (chart2)
 
 /**
- * Render (or re-render) the main bar chart.
- * Destroys `oldChart` if provided, then returns the new Chart instance.
  * @param {Chart|null} oldChart
  * @param {HTMLCanvasElement} canvas
  * @param {Array} filtered
- * @param {string[]} activeBuckets  — finest first
- * @param {boolean} showCumsum
- * @returns {Chart}
+ * @param {string[]} activeBuckets
+ * @returns {Chart|null}
  */
-export function renderBarChart(oldChart, canvas, filtered, activeBuckets, showCumsum) {
+export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCumsum) {
     if (oldChart) oldChart.destroy();
 
     const finestType = activeBuckets[0];
+    const finestSparse = bucket(filtered, finestType);
+    if (finestSparse.size === 0) return null;
 
-    const sparseMaps = new Map(activeBuckets.map(t => [t, bucket(filtered, t)]));
-    const finestFilled = fillGaps(sparseMaps.get(finestType), finestType);
+    const finestFilled = fillGaps(finestSparse, finestType);
     const labels = [...finestFilled.keys()];
-    const finestData = [...finestFilled.values()];
 
-    const datasets = [];
-    const newSpanningBarsCfg = [];
+    const todMaps = new Map(TOD_BUCKETS.map(t => [t, new Map()]));
+    for (const { timestamp, value } of filtered) {
+        const dt = parseTs(timestamp);
+        const dk = bucketKey(dt, finestType);
+        const tk = todBucket(dt);
+        const sub = todMaps.get(tk);
+        sub.set(dk, (sub.get(dk) ?? 0) + value);
+    }
 
-    // Finest-bucket bars
-    {
-        const c = BUCKET_COLORS[finestType];
-        datasets.push({
-            type: "bar",
-            label: BUCKET_LABEL[finestType],
-            data: finestData,
+    const datasets = TOD_BUCKETS.map((tod, i) => {
+        const c = TOD_COLORS[i];
+        const todMap = todMaps.get(tod);
+        return {
+            label: tod,
+            data: labels.map(lbl => todMap.get(lbl) ?? 0),
             backgroundColor: c.bg,
             borderColor: c.border,
             borderWidth: 1,
-            barPercentage: 1.0,
-            categoryPercentage: 1.0,
-            yAxisID: "y",
-            order: BUCKET_ORDER_N[finestType],
-        });
-    }
+            fill: true,
+            tension: 0.3,
+            pointRadius: labels.length > 60 ? 0 : 2,
+        };
+    });
 
-    // Coarser buckets: phantom datasets for legend; actual bars via plugin
-    for (const type of [...activeBuckets].slice(1).reverse()) {
-        const c = BUCKET_COLORS[type];
-        const coarseMap = sparseMaps.get(type);
-        const coarseIdx = newSpanningBarsCfg.length;
-
-        datasets.push({
-            type: "bar",
-            label: BUCKET_LABEL[type],
-            data: new Array(labels.length).fill(null),
-            backgroundColor: c.bg,
-            borderColor: c.border,
-            borderWidth: 1,
-            yAxisID: "y",
-            order: BUCKET_ORDER_N[type],
-            _coarseIdx: coarseIdx,
-        });
-
-        const fineToCoarseKey = labels.map(fl =>
-            bucketKey(parseKey(fl, finestType), type)
-        );
-        newSpanningBarsCfg.push({ bg: c.bg, border: c.border, coarseMap, fineToCoarseKey });
-    }
-
-    setSpanningBarsCfg(newSpanningBarsCfg);
-
-    // Cumulative line
     if (showCumsum) {
         const dailyMap = bucket(filtered, "daily");
         const cumsumArr = cumsum(dailyMap);
@@ -137,15 +102,11 @@ export function renderBarChart(oldChart, canvas, filtered, activeBuckets, showCu
             borderWidth: 2,
             pointRadius: 2,
             stepped: "after",
+            fill: false,
             yAxisID: "y2",
             order: 0,
         });
     }
-
-    const allValues = [...sparseMaps.values()]
-        .flatMap(m => [...m.values()])
-        .filter(v => v != null);
-    const yMax = allValues.length > 0 ? Math.max(...allValues) : 0;
 
     const scales = {
         x: {
@@ -153,9 +114,8 @@ export function renderBarChart(oldChart, canvas, filtered, activeBuckets, showCu
             grid: { color: "rgba(0,0,0,0.05)" },
         },
         y: {
-            position: "left",
+            stacked: true,
             beginAtZero: true,
-            suggestedMax: yMax,
             title: { display: true, text: "Sum", font: { size: 11 } },
             grid: { color: "rgba(0,0,0,0.07)" },
             ticks: { font: { size: 11 } },
@@ -171,93 +131,6 @@ export function renderBarChart(oldChart, canvas, filtered, activeBuckets, showCu
             ticks: { font: { size: 11 } },
         };
     }
-
-    return new Chart(canvas, {
-        type: "bar",
-        data: { labels, datasets },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            grouped: false,
-            interaction: { mode: "index", intersect: false },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    mode: "index",
-                    intersect: false,
-                    callbacks: {
-                        title(tooltipItems) {
-                            const label = tooltipItems[0]?.label ?? "";
-                            const dt = parseKey(label, finestType);
-                            if (finestType === "daily") return `${dt.toFormat("ccc")}, ${label}`;
-                            if (finestType === "weekly") return `${label} (${dt.toFormat("ccc dd MMM")})`;
-                            return label;
-                        },
-                        label(ctx) {
-                            const coarseIdx = ctx.dataset._coarseIdx;
-                            if (coarseIdx != null) {
-                                const cfg = newSpanningBarsCfg[coarseIdx];
-                                const coarseKey = cfg.fineToCoarseKey[ctx.dataIndex];
-                                const val = cfg.coarseMap.get(coarseKey);
-                                if (val == null) return null;
-                                return `${ctx.dataset.label}: ${val}`;
-                            }
-                            const v = ctx.parsed.y;
-                            if (v == null) return null;
-                            return `${ctx.dataset.label}: ${v}`;
-                        },
-                    },
-                },
-            },
-            scales,
-        },
-        plugins: [spanningBarsPlugin],
-    });
-}
-
-//  Time-of-day stacked area chart (chart2)
-
-/**
- * @param {Chart|null} oldChart
- * @param {HTMLCanvasElement} canvas
- * @param {Array} filtered
- * @param {string[]} activeBuckets
- * @returns {Chart|null}
- */
-export function renderTodChart(oldChart, canvas, filtered, activeBuckets) {
-    if (oldChart) oldChart.destroy();
-
-    const finestType = activeBuckets[0];
-    const finestSparse = bucket(filtered, finestType);
-    if (finestSparse.size === 0) return null;
-
-    const finestFilled = fillGaps(finestSparse, finestType);
-    const labels = [...finestFilled.keys()];
-
-    const todMaps = new Map(TOD_BUCKETS.map(t => [t, new Map()]));
-    for (const { timestamp, value } of filtered) {
-        const dt = parseTs(timestamp);
-        const dk = bucketKey(dt, finestType);
-        const tk = todBucket(dt);
-        const sub = todMaps.get(tk);
-        sub.set(dk, (sub.get(dk) ?? 0) + value);
-    }
-
-    const datasets = TOD_BUCKETS.map((tod, i) => {
-        const c = TOD_COLORS[i];
-        const todMap = todMaps.get(tod);
-        return {
-            label: tod,
-            data: labels.map(lbl => todMap.get(lbl) ?? 0),
-            backgroundColor: c.bg,
-            borderColor: c.border,
-            borderWidth: 1,
-            fill: true,
-            tension: 0.3,
-            pointRadius: labels.length > 60 ? 0 : 2,
-        };
-    });
 
     return new Chart(canvas, {
         type: "line",
@@ -282,25 +155,16 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets) {
                             return label;
                         },
                         label(ctx) {
+                            if (ctx.dataset.yAxisID === "y2") {
+                                return `Cumulative: ${ctx.parsed.y}`;
+                            }
                             if (!ctx.parsed.y) return null;
                             return `${ctx.dataset.label}: ${ctx.parsed.y}`;
                         },
                     },
                 },
             },
-            scales: {
-                x: {
-                    ticks: { maxRotation: 45, autoSkip: true, font: { size: 11 } },
-                    grid: { color: "rgba(0,0,0,0.05)" },
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    title: { display: true, text: "Sum", font: { size: 11 } },
-                    grid: { color: "rgba(0,0,0,0.07)" },
-                    ticks: { font: { size: 11 } },
-                },
-            },
+            scales,
         },
     });
 }
@@ -528,50 +392,3 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
     });
 }
 
-//  Sync chart x-axis alignment
-
-/**
- * After all charts are rendered, equalise their left/right margins so the
- * x-axes are pixel-aligned despite one chart having an extra y2 axis.
- * @param {Chart|null} chart
- * @param {Chart|null} chart2
- * @param {Chart|null} chart3
- */
-export function syncChartLayouts(chart, chart2, chart3) {
-    if (!chart || !chart2) return;
-    const ca = chart.chartArea;
-    const ca2 = chart2.chartArea;
-    if (!ca || !ca2) return;
-
-    const ca3 = chart3?.chartArea ?? null;
-
-    const targetLeft = Math.max(ca.left, ca2.left, ca3 ? ca3.left : 0);
-    const targetRight = Math.max(
-        chart.width - ca.right,
-        chart2.width - ca2.right,
-        ca3 ? chart3.width - ca3.right : 0
-    );
-
-    const padL1 = Math.round(targetLeft - ca.left);
-    const padR1 = Math.round(targetRight - (chart.width - ca.right));
-    const padL2 = Math.round(targetLeft - ca2.left);
-    const y2Extra = chart.scales.y2 ? 16 : 0;
-    const padR2 = Math.round(targetRight - (chart2.width - ca2.right)) + y2Extra;
-
-    if (padL1 > 0 || padR1 > 0) {
-        chart.config.options.layout = { padding: { left: padL1, right: padR1 } };
-        chart.update("none");
-    }
-    if (padL2 > 0 || padR2 > 0) {
-        chart2.config.options.layout = { padding: { left: padL2, right: padR2 } };
-        chart2.update("none");
-    }
-    if (ca3) {
-        const padL3 = Math.round(targetLeft - ca3.left);
-        const padR3 = Math.round(targetRight - (chart3.width - ca3.right));
-        if (padL3 > 0 || padR3 > 0) {
-            chart3.config.options.layout = { padding: { left: padL3, right: padR3 } };
-            chart3.update("none");
-        }
-    }
-}

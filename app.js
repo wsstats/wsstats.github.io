@@ -3,11 +3,9 @@
 import { bucket } from "./utils.js";
 import {
     BUCKET_TYPES,
-    renderBarChart,
     renderTodChart,
     renderInterarrivalChart,
     renderIntensityChart,
-    syncChartLayouts,
 } from "./charts.js";
 import { renderTable, renderGapTable } from "./tables.js";
 
@@ -18,26 +16,23 @@ const dateFrom = document.getElementById("date-from");
 const dateTo = document.getElementById("date-to");
 const cumsumBox = document.getElementById("cumsum-toggle");
 const emptyMsg = document.getElementById("empty-msg");
-const canvas = document.getElementById("chart");
 const canvas2 = document.getElementById("chart2");
 const canvas3 = document.getElementById("chart3");
 const canvas4 = document.getElementById("chart4");
 
 //  State
 let rawData = [];  // [{timestamp: string, value: number}, ...]
-let chart = null;
 let chart2 = null;
 let chart3 = null;
 let chart4 = null;
 
 //  Helpers
 
-/** Returns selected bucket types sorted finest → coarsest; falls back to daily. */
+/** Returns the selected bucket type as a single-element array; falls back to daily. */
 function getActiveBuckets() {
-    const sel = BUCKET_TYPES.filter(t =>
+    return [BUCKET_TYPES.find(t =>
         document.getElementById(`bucket-${t}`).checked
-    );
-    return sel.length > 0 ? sel : ["daily"];
+    ) ?? "daily"];
 }
 
 //  Render
@@ -56,21 +51,13 @@ function render() {
 
     const isEmpty = bucket(filtered, finestType).size === 0;
     emptyMsg.hidden = !isEmpty;
-    canvas.style.visibility = isEmpty ? "hidden" : "visible";
-
-    if (isEmpty) {
-        if (chart) { chart.destroy(); chart = null; }
-    } else {
-        chart = renderBarChart(chart, canvas, filtered, activeBuckets, cumsumBox.checked);
-    }
+    canvas2.style.visibility = isEmpty ? "hidden" : "visible";
 
     renderTable(filtered, fromVal, toVal);
     renderGapTable(filtered);
-    chart2 = renderTodChart(chart2, canvas2, filtered, activeBuckets);
+    chart2 = renderTodChart(chart2, canvas2, filtered, activeBuckets, cumsumBox.checked);
     chart3 = renderInterarrivalChart(chart3, canvas3, filtered, activeBuckets);
     chart4 = renderIntensityChart(chart4, canvas4, filtered, activeBuckets);
-
-    syncChartLayouts(chart, chart2, chart3);
 }
 
 //  Initialise
@@ -82,7 +69,7 @@ async function init() {
 
     if (rawData.length === 0) {
         emptyMsg.hidden = false;
-        canvas.style.visibility = "hidden";
+        canvas2.style.visibility = "hidden";
         return;
     }
 
@@ -117,12 +104,13 @@ async function init() {
     });
     cumsumBox.addEventListener("change", render);
     document.querySelectorAll('input[name="bucket"]').forEach(r =>
-        r.addEventListener("change", () => {
-            const anyChecked = BUCKET_TYPES.some(t =>
-                document.getElementById(`bucket-${t}`).checked
-            );
-            if (!anyChecked) {
-                document.getElementById("bucket-daily").checked = true;
+        r.addEventListener("change", e => {
+            if (e.target.checked) {
+                document.querySelectorAll('input[name="bucket"]').forEach(other => {
+                    if (other !== e.target) other.checked = false;
+                });
+            } else {
+                e.target.checked = true; // prevent unchecking the last active
             }
             render();
         })
@@ -133,7 +121,7 @@ init().catch(err => {
     console.error(err);
     emptyMsg.textContent = "Error loading data.";
     emptyMsg.hidden = false;
-    canvas.style.visibility = "hidden";
+    canvas2.style.visibility = "hidden";
 });
 
 //  Chart resize handles
