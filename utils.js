@@ -28,9 +28,9 @@ export function bucketKey(dt, type) {
  */
 export function bucket(entries, type) {
     const map = new Map();
-    for (const { timestamp, value } of entries) {
+    for (const { timestamp } of entries) {
         const key = bucketKey(parseTs(timestamp), type);
-        map.set(key, (map.get(key) ?? 0) + value);
+        map.set(key, (map.get(key) ?? 0) + 1);
     }
     return new Map([...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1));
 }

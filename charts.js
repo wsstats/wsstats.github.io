@@ -66,12 +66,12 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     const labels = [...finestFilled.keys()];
 
     const todMaps = new Map(TOD_HOURS.map(t => [t, new Map()]));
-    for (const { timestamp, value } of filtered) {
+    for (const { timestamp } of filtered) {
         const dt = parseTs(timestamp);
         const dk = bucketKey(dt, finestType);
         const tk = todBucketHour(dt);
         const sub = todMaps.get(tk);
-        sub.set(dk, (sub.get(dk) ?? 0) + value);
+        sub.set(dk, (sub.get(dk) ?? 0) + 1);
     }
 
     const datasets = TOD_HOURS.map((tod, i) => {
@@ -343,12 +343,12 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
     // Accumulate value sums into cells[xi][yi]
     const cells = Array.from({ length: nX }, () => new Array(nY).fill(0));
     let maxCount = 0;
-    for (const { timestamp, value } of filtered) {
+    for (const { timestamp } of filtered) {
         const dt = parseTs(timestamp);
         const xi = xLabelIdx.get(bucketKey(dt, finestType));
         if (xi === undefined) continue;
         const yi = ySlotFn(dt);
-        cells[xi][yi] += value;
+        cells[xi][yi] += 1;
         if (cells[xi][yi] > maxCount) maxCount = cells[xi][yi];
     }
 
@@ -458,12 +458,12 @@ export function renderSumFrequencyChart(oldChart, canvas, filtered, activeBucket
     // Step 1: accumulate value sum per (outer-period, slot)
     const subSums = new Map();   // "<outerKey>|<slot>" -> sum
     const subSlots = new Map();  // "<outerKey>|<slot>" -> slot index
-    for (const { timestamp, value } of filtered) {
+    for (const { timestamp } of filtered) {
         const dt = parseTs(timestamp);
         const outerKey = bucketKey(dt, finestType);
         const slot = slotFn(dt);
         const k = `${outerKey}|${slot}`;
-        subSums.set(k, (subSums.get(k) ?? 0) + value);
+        subSums.set(k, (subSums.get(k) ?? 0) + 1);
         subSlots.set(k, slot);
     }
 
