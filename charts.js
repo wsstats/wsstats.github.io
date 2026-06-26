@@ -1,6 +1,6 @@
 /* global luxon, Chart */
 
-import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucket } from "./utils.js";
+import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucketHour } from "./utils.js";
 import { heatmapPlugin } from "./plugins.js";
 
 const { DateTime } = luxon;
@@ -9,17 +9,42 @@ const { DateTime } = luxon;
 
 export const BUCKET_TYPES = ["daily", "weekly", "monthly"];
 
-const TOD_BUCKETS = ["00–06", "06–09", "09–12", "12–15", "15–18", "18–21", "21–24"];
+const TOD_HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 
-const TOD_COLORS = [
-    { bg: "rgba( 30,  58, 138, 0.65)", border: "rgba( 30,  58, 138, 0.9)" },  // 00-06 midnight
-    { bg: "rgba(  6, 213, 217, 0.65)", border: "rgba(  6, 213, 217, 0.9)" },  // 06-09 dawn
-    { bg: "rgba( 34, 197,  94, 0.65)", border: "rgba( 34, 197,  94, 0.9)" },  // 09-12 morning
-    { bg: "rgba(234, 179,   8, 0.65)", border: "rgba(234, 179,   8, 0.9)" },  // 12-15 midday
-    { bg: "rgba(249, 115,  22, 0.65)", border: "rgba(249, 115,  22, 0.9)" },  // 15-18 afternoon
-    { bg: "rgba(239,  68,  68, 0.65)", border: "rgba(239,  68,  68, 0.9)" },  // 18-21 evening
-    { bg: "rgba(124,  58, 237, 0.65)", border: "rgba(124,  58, 237, 0.9)" },  // 21-24 night
+// Key color stops across the 24-hour cycle; interpolated to produce a smooth gradient.
+const _TOD_COLOR_STOPS = [
+    { h: 0, r: 30, g: 58, b: 138 },  // midnight
+    { h: 6, r: 6, g: 213, b: 217 },  // dawn
+    { h: 9, r: 34, g: 197, b: 94 },  // morning
+    { h: 12, r: 234, g: 179, b: 8 },  // midday
+    { h: 15, r: 249, g: 115, b: 22 },  // afternoon
+    { h: 18, r: 239, g: 68, b: 68 },  // evening
+    { h: 21, r: 124, g: 58, b: 237 },  // night
+    { h: 24, r: 30, g: 58, b: 138 },  // back to midnight
 ];
+
+function _todColor(hour, alpha) {
+    const h = hour + 0.5;  // sample the midpoint of the hour
+    let lo = _TOD_COLOR_STOPS[0];
+    let hi = _TOD_COLOR_STOPS[_TOD_COLOR_STOPS.length - 1];
+    for (let i = 0; i < _TOD_COLOR_STOPS.length - 1; i++) {
+        if (h >= _TOD_COLOR_STOPS[i].h && h < _TOD_COLOR_STOPS[i + 1].h) {
+            lo = _TOD_COLOR_STOPS[i];
+            hi = _TOD_COLOR_STOPS[i + 1];
+            break;
+        }
+    }
+    const t = (h - lo.h) / (hi.h - lo.h);
+    const r = Math.round(lo.r + t * (hi.r - lo.r));
+    const g = Math.round(lo.g + t * (hi.g - lo.g));
+    const b = Math.round(lo.b + t * (hi.b - lo.b));
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+const TOD_COLORS = TOD_HOURS.map((_, i) => ({
+    bg: _todColor(i, 0.65),
+    border: _todColor(i, 0.9),
+}));
 
 //  Time-of-day stacked area chart (chart2)
 
@@ -40,16 +65,16 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     const finestFilled = fillGaps(finestSparse, finestType);
     const labels = [...finestFilled.keys()];
 
-    const todMaps = new Map(TOD_BUCKETS.map(t => [t, new Map()]));
+    const todMaps = new Map(TOD_HOURS.map(t => [t, new Map()]));
     for (const { timestamp, value } of filtered) {
         const dt = parseTs(timestamp);
         const dk = bucketKey(dt, finestType);
-        const tk = todBucket(dt);
+        const tk = todBucketHour(dt);
         const sub = todMaps.get(tk);
         sub.set(dk, (sub.get(dk) ?? 0) + value);
     }
 
-    const datasets = TOD_BUCKETS.map((tod, i) => {
+    const datasets = TOD_HOURS.map((tod, i) => {
         const c = TOD_COLORS[i];
         const todMap = todMaps.get(tod);
         return {
@@ -159,7 +184,9 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
                                 return `Cumulative: ${ctx.parsed.y}`;
                             }
                             if (!ctx.parsed.y) return null;
-                            return `${ctx.dataset.label}: ${ctx.parsed.y}`;
+                            const h = ctx.dataset.label;
+                            const hNext = String((+h + 1) % 24).padStart(2, "0");
+                            return `${h}:00\u2013${hNext}:00: ${ctx.parsed.y}`;
                         },
                     },
                 },

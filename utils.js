@@ -101,3 +101,8 @@ export function todBucket(dt) {
     if (h < 21) return "18–21";
     return "21–24";
 }
+
+/** Map a Luxon DateTime to a zero-padded hourly label ("00"–"23"). */
+export function todBucketHour(dt) {
+    return pad2(dt.hour);
+}
