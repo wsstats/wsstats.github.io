@@ -62,9 +62,22 @@ function render() {
     renderTable(filtered, fromVal, toVal);
     renderGapTable(filtered);
     chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked);
+    updateFavicon();
     chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, activeBuckets, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
+}
+
+function updateFavicon() {
+    const SIZE = 32;
+    const offscreen = document.createElement("canvas");
+    offscreen.width = SIZE;
+    offscreen.height = SIZE;
+    const ctx = offscreen.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.drawImage(canvas1, 0, 0, SIZE, SIZE);
+    document.getElementById("favicon").href = offscreen.toDataURL("image/png");
 }
 
 //  Initialise
