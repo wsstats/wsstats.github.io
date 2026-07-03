@@ -85,6 +85,9 @@ async function init() {
     dateFrom.value = days[0];
     dateTo.value = days[days.length - 1];
 
+    const updatedLabel = document.getElementById("updated-label");
+    if (updatedLabel) updatedLabel.textContent = `Data last updated: ${days[days.length - 1]}`;
+
     render();
 
     // Wire controls

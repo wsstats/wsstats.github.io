@@ -31,6 +31,13 @@ h1 {
     margin-right: 0.5rem;
 }
 
+.updated-label {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: #888;
+    white-space: nowrap;
+}
+
 .control-group {
     display: flex;
     align-items: center;
