@@ -170,7 +170,16 @@ main {
     text-overflow: ellipsis;
 }
 
-.info-btn {
+.chart-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.info-btn,
+.export-btn {
     flex-shrink: 0;
     width: 1.35rem;
     height: 1.35rem;
@@ -189,9 +198,14 @@ main {
 }
 
 .info-btn:hover,
-.info-btn[aria-expanded="true"] {
+.info-btn[aria-expanded="true"],
+.export-btn:hover {
     color: #3b82f6;
     background: #eff6ff;
+}
+
+.export-btn--copied {
+    color: #22c55e;
 }
 
 .info-panel {

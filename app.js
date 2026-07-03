@@ -198,3 +198,32 @@ document.querySelectorAll(".chart-resizer").forEach(resizer => {
         document.addEventListener("mouseup", onMouseUp);
     });
 });
+
+// PNG export buttons
+function copyChartToPng(canvas, btn) {
+    const tmp = document.createElement("canvas");
+    tmp.width = canvas.width;
+    tmp.height = canvas.height;
+    const ctx = tmp.getContext("2d");
+    ctx.fillStyle = "#ffffff"; // white background
+    ctx.fillRect(0, 0, tmp.width, tmp.height);
+    ctx.drawImage(canvas, 0, 0);
+    tmp.toBlob(blob => {
+        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
+            const prev = btn.textContent;
+            btn.textContent = "✓";
+            btn.classList.add("export-btn--copied");
+            setTimeout(() => {
+                btn.textContent = prev;
+                btn.classList.remove("export-btn--copied");
+            }, 1500);
+        }).catch(err => { console.error("Failed to copy chart to clipboard:", err); });
+    });
+}
+
+document.querySelectorAll(".export-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const canvas = document.getElementById(btn.dataset.canvas);
+        if (canvas) copyChartToPng(canvas, btn);
+    });
+});
