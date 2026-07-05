@@ -42,11 +42,11 @@ function _todColor(hour, alpha) {
 }
 
 const TOD_COLORS = TOD_HOURS.map((_, i) => ({
-    bg: _todColor(i, 0.65),
+    bg: _todColor(i, 0.9),
     border: _todColor(i, 0.9),
 }));
 
-//  Time-of-day stacked area chart (chart1)
+//  Time-of-day stacked bar chart (chart1)
 
 /**
  * @param {Chart|null} oldChart
@@ -81,11 +81,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             label: tod,
             data: labels.map(lbl => todMap.get(lbl) ?? 0),
             backgroundColor: c.bg,
-            borderColor: c.border,
-            borderWidth: 1,
-            fill: true,
-            tension: 0.3,
-            pointRadius: labels.length > 60 ? 0 : 2,
+            borderWidth: 0,
         };
     });
 
@@ -133,23 +129,13 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
         });
     }
 
-    // Single-bucket: duplicate the sole data point so each series renders as a
-    // horizontal line with a filled area beneath it rather than a lone dot.
-    if (labels.length === 1) {
-        labels = [labels[0], labels[0]];
-        for (const ds of datasets) {
-            ds.data = [ds.data[0], ds.data[0]];
-        }
-    }
-
     const scales = {
         x: {
+            stacked: true,
             ticks: {
                 maxRotation: 45,
                 autoSkip: true,
                 font: { size: 11 },
-                // Suppress the repeated right-hand tick added for the single-bucket case.
-                callback(val, i) { return (i === 1 && labels[0] === labels[1]) ? "" : labels[i]; },
             },
             grid: { color: "rgba(0,0,0,0.05)" },
         },
@@ -173,7 +159,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     }
 
     return new Chart(canvas, {
-        type: "line",
+        type: "bar",
         data: { labels, datasets },
         options: {
             animation: false,
