@@ -165,12 +165,12 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
+            interaction: { mode: "index", intersect: true },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     mode: "index",
-                    intersect: false,
+                    intersect: true,
                     itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
                     callbacks: {
                         title(tooltipItems) {
@@ -311,12 +311,12 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
+            interaction: { mode: "index", intersect: true },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     mode: "index",
-                    intersect: false,
+                    intersect: true,
                     callbacks: {
                         title(tooltipItems) {
                             const label = tooltipItems[0]?.label ?? "";
