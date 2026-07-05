@@ -38,6 +38,13 @@ h1 {
     white-space: nowrap;
 }
 
+.date-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
 .control-group {
     display: flex;
     align-items: center;
@@ -325,6 +332,28 @@ main {
     font-weight: 600;
     border-bottom: 2px solid #ddd;
     color: #444;
+}
+
+/* Small-screen header: stack each control row on its own line */
+@media (max-width: 600px) {
+
+    header h1,
+    header .date-range {
+        flex-basis: 100%;
+    }
+
+    header .btn-group {
+        align-self: start;
+        width: fit-content;
+    }
+
+    .date-range {
+        flex-wrap: nowrap;
+    }
+
+    .updated-label {
+        margin-left: 0;
+    }
 }
 
 #stats-table tbody tr:nth-child(even),
