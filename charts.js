@@ -452,9 +452,6 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
                     min: -0.5,
                     max: nX - 0.5,
                     title: { display: true, text: xTitle, font: { size: 11 } },
-                    afterBuildTicks(scale) {
-                        scale.ticks = Array.from({ length: nX }, (_, i) => ({ value: i }));
-                    },
                     ticks: {
                         autoSkip: true,
                         maxRotation: 45,
