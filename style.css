@@ -278,6 +278,11 @@ main {
     overflow-x: auto;
 }
 
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .table-title {
     font-size: 0.8rem;
     font-weight: 600;
@@ -291,9 +296,9 @@ main {
 #stats-table,
 #gap-table {
     width: 100%;
-    border-collapse: collapse;
+    min-width: 640px;
     font-size: 0.85rem;
-    table-layout: fixed;
+    table-layout: max-content;
 }
 
 #stats-table th,
