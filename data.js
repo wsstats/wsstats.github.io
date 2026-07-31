@@ -51,15 +51,14 @@ export function computeMonthlyStats(filtered, fromVal, toVal) {
 
         const freq = new Map();
         for (const v of values) freq.set(v, (freq.get(v) ?? 0) + 1);
-        let mode = values[0], maxFreq = 0;
-        for (const [v, f] of freq) {
-            if (f > maxFreq || (f === maxFreq && v < mode)) { mode = v; maxFreq = f; }
-        }
+        let maxFreq = 0;
+        for (const [, f] of freq) { if (f > maxFreq) maxFreq = f; }
+        const modes = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v).sort((a, b) => a - b);
 
         rows.push({
             year: monthStart.year,
             month: monthStart.toFormat("LLLL"),
-            mean, sd, median, mode, modeCount: maxFreq,
+            mean, sd, median, modes, modeCount: maxFreq,
             min: sorted[0], minCount: freq.get(sorted[0]),
             max: sorted[n - 1], maxCount: freq.get(sorted[n - 1]),
             total,
@@ -113,16 +112,15 @@ export function computeGapStats(filtered) {
             const r = Math.round(v * 10) / 10;
             freq.set(r, (freq.get(r) ?? 0) + 1);
         }
-        let mode = gaps[0], maxFreq = 0;
-        for (const [v, f] of freq) {
-            if (f > maxFreq || (f === maxFreq && v < mode)) { mode = v; maxFreq = f; }
-        }
+        let maxFreq = 0;
+        for (const [, f] of freq) { if (f > maxFreq) maxFreq = f; }
+        const modes = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v).sort((a, b) => a - b);
         const minGap = sortedGaps[0];
         const maxGap = sortedGaps[n - 1];
         const minCount = sortedGaps.filter(v => v === minGap).length;
         const maxCount = sortedGaps.filter(v => v === maxGap).length;
 
-        rows.push({ year, month, mean, sd, median, mode, modeCount: maxFreq, min: minGap, minCount, max: maxGap, maxCount, total: n });
+        rows.push({ year, month, mean, sd, median, modes, modeCount: maxFreq, min: minGap, minCount, max: maxGap, maxCount, total: n });
     }
     return rows;
 }

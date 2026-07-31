@@ -43,7 +43,7 @@ export function renderTable(filtered, fromVal, toVal) {
                 `<td class="col-label">${row.month}</td>` +
                 `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}</td>` +
                 `<td>${row.median.toFixed(1)}</td>` +
-                `<td>${row.mode} <span class="count">(×${row.modeCount})</span></td>` +
+                `<td>${row.modes.join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
                 `<td>${row.min} <span class="count">(×${row.minCount})</span></td>` +
                 `<td>${row.max} <span class="count">(×${row.maxCount})</span></td>` +
                 `<td>${row.total}</td>`;
@@ -71,10 +71,9 @@ export function renderTable(filtered, fromVal, toVal) {
                     : (ySorted[yn / 2 - 1] + ySorted[yn / 2]) / 2;
                 const yFreq = new Map();
                 for (const v of yValues) yFreq.set(v, (yFreq.get(v) ?? 0) + 1);
-                let yMode = yValues[0], yModeCount = 0;
-                for (const [v, f] of yFreq) {
-                    if (f > yModeCount || (f === yModeCount && v < yMode)) { yMode = v; yModeCount = f; }
-                }
+                let yModeCount = 0;
+                for (const [, f] of yFreq) { if (f > yModeCount) yModeCount = f; }
+                const yModes = [...yFreq.entries()].filter(([, f]) => f === yModeCount).map(([v]) => v).sort((a, b) => a - b);
                 const yMin = ySorted[0];
                 const yMax = ySorted[yn - 1];
                 const tr = document.createElement("tr");
@@ -83,7 +82,7 @@ export function renderTable(filtered, fromVal, toVal) {
                     `<td class="col-label" colspan="2">${year} total</td>` +
                     `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}</td>` +
                     `<td>${yMedian.toFixed(1)}</td>` +
-                    `<td>${yMode} <span class="count">(×${yModeCount})</span></td>` +
+                    `<td>${yModes.join(', ')} <span class="count">(×${yModeCount})</span></td>` +
                     `<td>${yMin} <span class="count">(×${yFreq.get(yMin)})</span></td>` +
                     `<td>${yMax} <span class="count">(×${yFreq.get(yMax)})</span></td>` +
                     `<td>${yTotal}</td>`;
@@ -112,10 +111,9 @@ export function renderTable(filtered, fromVal, toVal) {
             : (sortedAll[n / 2 - 1] + sortedAll[n / 2]) / 2;
         const freq = new Map();
         for (const v of allValues) freq.set(v, (freq.get(v) ?? 0) + 1);
-        let mode = allValues[0], maxFreq = 0;
-        for (const [v, f] of freq) {
-            if (f > maxFreq || (f === maxFreq && v < mode)) { mode = v; maxFreq = f; }
-        }
+        let maxFreq = 0;
+        for (const [, f] of freq) { if (f > maxFreq) maxFreq = f; }
+        const modes = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v).sort((a, b) => a - b);
         const minVal = sortedAll[0];
         const maxVal = sortedAll[n - 1];
         const tr = document.createElement("tr");
@@ -124,7 +122,7 @@ export function renderTable(filtered, fromVal, toVal) {
             `<td class="col-label" colspan="2">Total</td>` +
             `<td>${mean.toFixed(1)} ± ${sd.toFixed(1)}</td>` +
             `<td>${median.toFixed(1)}</td>` +
-            `<td>${mode} <span class="count">(×${freq.get(mode)})</span></td>` +
+            `<td>${modes.join(', ')} <span class="count">(×${maxFreq})</span></td>` +
             `<td>${minVal} <span class="count">(×${freq.get(minVal)})</span></td>` +
             `<td>${maxVal} <span class="count">(×${freq.get(maxVal)})</span></td>` +
             `<td>${total}</td>`;
@@ -185,7 +183,7 @@ export function renderGapTable(filtered) {
                 `<td class="col-label">${row.month}</td>` +
                 `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}</td>` +
                 `<td>${row.median.toFixed(1)}</td>` +
-                `<td>${row.mode.toFixed(1)} <span class="count">(×${row.modeCount})</span></td>` +
+                `<td>${row.modes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
                 `<td>${row.min.toFixed(1)} <span class="count">(×${row.minCount})</span></td>` +
                 `<td>${row.max.toFixed(1)} <span class="count">(×${row.maxCount})</span></td>` +
                 `<td>${isFirstGapRow ? row.total + 1 : row.total}</td>`;
@@ -209,10 +207,9 @@ export function renderGapTable(filtered) {
                     const r = Math.round(v * 10) / 10;
                     yFreq.set(r, (yFreq.get(r) ?? 0) + 1);
                 }
-                let yMode = yGaps[0], yModeCount = 0;
-                for (const [v, f] of yFreq) {
-                    if (f > yModeCount || (f === yModeCount && v < yMode)) { yMode = v; yModeCount = f; }
-                }
+                let yModeCount = 0;
+                for (const [, f] of yFreq) { if (f > yModeCount) yModeCount = f; }
+                const yModes = [...yFreq.entries()].filter(([, f]) => f === yModeCount).map(([v]) => v).sort((a, b) => a - b);
                 const yMin = ySorted[0];
                 const yMax = ySorted[yn - 1];
                 const yMinCount = ySorted.filter(v => v === yMin).length;
@@ -223,7 +220,7 @@ export function renderGapTable(filtered) {
                     `<td class="col-label" colspan="2">${year} total</td>` +
                     `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}</td>` +
                     `<td>${yMedian.toFixed(1)}</td>` +
-                    `<td>${yMode.toFixed(1)} <span class="count">(×${yModeCount})</span></td>` +
+                    `<td>${yModes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${yModeCount})</span></td>` +
                     `<td>${yMin.toFixed(1)} <span class="count">(×${yMinCount})</span></td>` +
                     `<td>${yMax.toFixed(1)} <span class="count">(×${yMaxCount})</span></td>` +
                     `<td>${yn + 1}</td>`;
@@ -247,10 +244,9 @@ export function renderGapTable(filtered) {
             const r = Math.round(v * 10) / 10;
             freq.set(r, (freq.get(r) ?? 0) + 1);
         }
-        let mode = allGaps[0], maxFreq = 0;
-        for (const [v, f] of freq) {
-            if (f > maxFreq || (f === maxFreq && v < mode)) { mode = v; maxFreq = f; }
-        }
+        let maxFreq = 0;
+        for (const [, f] of freq) { if (f > maxFreq) maxFreq = f; }
+        const modes = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v).sort((a, b) => a - b);
         const minGap = sortedGaps[0];
         const maxGap = sortedGaps[n - 1];
         const minCount = sortedGaps.filter(v => v === minGap).length;
@@ -261,7 +257,7 @@ export function renderGapTable(filtered) {
             `<td class="col-label" colspan="2">Total</td>` +
             `<td>${mean.toFixed(1)} ± ${sd.toFixed(1)}</td>` +
             `<td>${median.toFixed(1)}</td>` +
-            `<td>${mode.toFixed(1)} <span class="count">(×${maxFreq})</span></td>` +
+            `<td>${modes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${maxFreq})</span></td>` +
             `<td>${minGap.toFixed(1)} <span class="count">(×${minCount})</span></td>` +
             `<td>${maxGap.toFixed(1)} <span class="count">(×${maxCount})</span></td>` +
             `<td>${n + 1}</td>`;
