@@ -16,6 +16,7 @@ const { DateTime } = luxon;
 const dateFrom = document.getElementById("date-from");
 const dateTo = document.getElementById("date-to");
 const cumsumBox = document.getElementById("cumsum-toggle");
+const barsBox = document.getElementById("bars-toggle");
 const gapMaxBox = document.getElementById("gap-max-toggle");
 const gapMeanBox = document.getElementById("gap-mean-toggle");
 const gapMedianBox = document.getElementById("gap-median-toggle");
@@ -61,7 +62,7 @@ function render() {
 
     renderTable(filtered, fromVal, toVal);
     renderGapTable(filtered);
-    chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked);
+    chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked);
     updateFavicon();
     chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
@@ -126,6 +127,7 @@ async function init() {
         render();
     });
     cumsumBox.addEventListener("change", render);
+    barsBox.addEventListener("change", render);
     gapMaxBox.addEventListener("change", render);
     gapMeanBox.addEventListener("change", render);
     gapMedianBox.addEventListener("change", render);

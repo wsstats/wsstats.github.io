@@ -51,6 +51,10 @@
             <div class="chart-header">
                 <span class="chart-title">Events over time by hour</span>
                 <label class="cumsum-control">
+                    <input type="checkbox" id="bars-toggle" />
+                    Bars
+                </label>
+                <label class="cumsum-control">
                     <input type="checkbox" id="cumsum-toggle" />
                     Cumulative
                 </label>
@@ -66,7 +70,7 @@
                 <div class="info-panel" role="region" aria-label="Chart explanation">
                     <p><strong>What it shows:</strong> A stacked area chart where each colour band represents one
                         clock-hour of the day. The combined height of a column equals the total number of events in that
-                        period.</p>
+                        period. Use the <em>Bars</em> toggle to switch to a stacked bar view.</p>
                     <p><strong>How to read it:</strong> Hover over a column to see the exact count for every hour. When
                         the <em>Cumulative</em> toggle is on, a red line on the right axis shows the running total of
                         all events.</p>
