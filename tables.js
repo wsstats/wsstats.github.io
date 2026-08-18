@@ -156,6 +156,7 @@ export function renderGapTable(filtered) {
     const sortedFull = [...filtered].sort((a, b) =>
         parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
     );
+    const firstEventYear = parseTs(sortedFull[0].timestamp).year;
     const allGaps = [];
     const gapsByYear = new Map();
     for (let i = 1; i < sortedFull.length; i++) {
@@ -223,7 +224,7 @@ export function renderGapTable(filtered) {
                     `<td>${yModes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${yModeCount})</span></td>` +
                     `<td>${yMin.toFixed(1)} <span class="count">(×${yMinCount})</span></td>` +
                     `<td>${yMax.toFixed(1)} <span class="count">(×${yMaxCount})</span></td>` +
-                    `<td>${yn + 1}</td>`;
+                    `<td>${year === firstEventYear ? yn + 1 : yn}</td>`;
                 tbody.appendChild(tr);
             }
         }
