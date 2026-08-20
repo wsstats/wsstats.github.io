@@ -15,6 +15,7 @@ const { DateTime } = luxon;
 // DOM refs
 const dateFrom = document.getElementById("date-from");
 const dateTo = document.getElementById("date-to");
+const specialBox = document.getElementById("special-toggle");
 const cumsumBox = document.getElementById("cumsum-toggle");
 const barsBox = document.getElementById("bars-toggle");
 const gapMaxBox = document.getElementById("gap-max-toggle");
@@ -48,9 +49,9 @@ function render() {
     const fromVal = dateFrom.value;
     const toVal = dateTo.value;
 
-    const filtered = rawData.filter(({ timestamp }) => {
+    const filtered = rawData.filter(({ timestamp, special }) => {
         const day = timestamp.slice(0, 10); // "YYYY-MM-DD"
-        return (!fromVal || day >= fromVal) && (!toVal || day <= toVal);
+        return (!fromVal || day >= fromVal) && (!toVal || day <= toVal) && (!specialBox.checked || special);
     });
 
     const activeBuckets = getActiveBuckets();
@@ -126,6 +127,7 @@ async function init() {
         dateTo.value = today.toISODate();
         render();
     });
+    specialBox.addEventListener("change", render);
     cumsumBox.addEventListener("change", render);
     barsBox.addEventListener("change", render);
     gapMaxBox.addEventListener("change", render);
