@@ -65,7 +65,7 @@ function render() {
     renderGapTable(filtered);
     chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked);
     updateFavicon();
-    chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
+    chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets, !specialBox.checked);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, activeBuckets, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
 }

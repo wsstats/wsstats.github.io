@@ -385,9 +385,10 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
  * @param {HTMLCanvasElement} canvas
  * @param {Array} filtered
  * @param {string[]} activeBuckets
+ * @param {boolean} highlightSpecial — outline cells containing special-flagged entries
  * @returns {Chart|null}
  */
-export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) {
+export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, highlightSpecial = true) {
     if (oldChart) oldChart.destroy();
     if (filtered.length === 0) return null;
 
@@ -422,13 +423,15 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
 
     // Accumulate value sums into cells[xi][yi]
     const cells = Array.from({ length: nX }, () => new Array(nY).fill(0));
+    const specialCells = Array.from({ length: nX }, () => new Array(nY).fill(0));
     let maxCount = 0;
-    for (const { timestamp } of filtered) {
+    for (const { timestamp, special } of filtered) {
         const dt = parseTs(timestamp);
         const xi = xLabelIdx.get(bucketKey(dt, finestType));
         if (xi === undefined) continue;
         const yi = ySlotFn(dt);
         cells[xi][yi] += 1;
+        if (special) specialCells[xi][yi] += 1;
         if (cells[xi][yi] > maxCount) maxCount = cells[xi][yi];
     }
 
@@ -436,7 +439,7 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
     for (let xi = 0; xi < nX; xi++) {
         for (let yi = 0; yi < nY; yi++) {
             if (cells[xi][yi] > 0)
-                points.push({ x: xi, y: yi, count: cells[xi][yi] });
+                points.push({ x: xi, y: yi, count: cells[xi][yi], specialCount: specialCells[xi][yi] });
         }
     }
 
@@ -456,12 +459,15 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets) 
             interaction: { mode: "nearest", intersect: true },
             plugins: {
                 legend: { display: false },
-                heatmap: { cells, nX, nY, maxCount },
+                heatmap: { cells, nX, nY, maxCount, specialCells: highlightSpecial ? specialCells : undefined },
                 tooltip: {
                     callbacks: {
                         label(ctx) {
-                            const { x: xi, y: yi, count } = ctx.raw;
-                            return `${xLabels[xi]}, ${yLabels[yi]}: ${count}`;
+                            const { x: xi, y: yi, count, specialCount } = ctx.raw;
+                            const countText = specialCount === 0 ? `${count}`
+                                : specialCount === count ? `(${count})`
+                                    : `${count} (${specialCount})`;
+                            return `${xLabels[xi]}, ${yLabels[yi]}: ${countText}`;
                         },
                     },
                 },

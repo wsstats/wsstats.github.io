@@ -9,7 +9,7 @@ export const heatmapPlugin = {
     beforeDatasetsDraw(chart) {
         const cfg = chart.options.plugins?.heatmap;
         if (!cfg) return;
-        const { cells, nX, nY, maxCount } = cfg;
+        const { cells, nX, nY, maxCount, specialCells } = cfg;
         if (!maxCount) return;
 
         const xScale = chart.scales.x;
@@ -43,6 +43,14 @@ export const heatmapPlugin = {
                 ctx.strokeStyle = "rgba(0,0,0,0.07)";
                 ctx.lineWidth = 0.5;
                 ctx.strokeRect(cx - cellW / 2, cy - cellH / 2, cellW, cellH);
+
+                const specialCount = specialCells?.[xi]?.[yi] ?? 0;
+                if (specialCount > 0) {
+                    const ratio = specialCount / count;
+                    ctx.strokeStyle = `rgba(245, 158, 11, ${(0.35 + 0.55 * ratio).toFixed(3)})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(cx - cellW / 2 + 0.75, cy - cellH / 2 + 0.75, cellW - 1.5, cellH - 1.5);
+                }
             }
         }
 
