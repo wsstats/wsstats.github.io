@@ -135,6 +135,26 @@ h1 {
     accent-color: #3b82f6;
 }
 
+/* Cluster chart spinboxes */
+.spinbox-control {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: #555;
+    white-space: nowrap;
+}
+
+.spinbox-control input[type="number"] {
+    width: 3.2rem;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #222;
+}
+
 /* Chart area */
 main {
     padding: 1rem;

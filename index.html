@@ -172,6 +172,39 @@
             </div>
         </div>
         <div class="chart-resizer" aria-label="Resize chart" role="separator"></div>
+        <div class="chart-container">
+            <div class="chart-header">
+                <span class="chart-title">Event clustering</span>
+                <label class="spinbox-control">
+                    Minimum events in cluster
+                    <input type="number" id="cluster-min-events" min="2" step="1" value="3" />
+                </label>
+                <label class="spinbox-control">
+                    Maximum time between events (minutes)
+                    <input type="number" id="cluster-max-gap" min="0" step="1" value="15" />
+                </label>
+                <div class="chart-actions">
+                    <button class="export-btn" aria-label="Copy chart as PNG" title="Copy to clipboard"
+                        data-canvas="chart5">📷</button>
+                    <button class="info-btn" aria-label="Chart info" aria-expanded="false">ⓘ</button>
+                </div>
+            </div>
+            <div class="chart-body">
+                <canvas id="chart5"></canvas>
+                <div class="info-panel" role="region" aria-label="Chart explanation">
+                    <p><strong>What it shows:</strong> A scatter plot of the number of qualifying event clusters found
+                        in each period of the selected bucket size. A cluster is a run of consecutive events where the
+                        gap between each event and the next never exceeds the configured maximum, and the run contains
+                        at least the configured minimum number of events.</p>
+                    <p><strong>How to read it:</strong> Each point is one period (day / week / month); its height is
+                        the number of clusters found in that period. Adjust the spinboxes to tighten or loosen the
+                        clustering definition.</p>
+                    <p><strong>What to look for:</strong> Periods with multiple clusters indicate repeated bursts of
+                        rapid-fire activity, as opposed to a single long burst or scattered isolated events.</p>
+                </div>
+            </div>
+        </div>
+        <div class="chart-resizer" aria-label="Resize chart" role="separator"></div>
         <div id="stats-table-container" class="table-container" hidden>
             <h2 class="table-title">Daily sum</h2>
             <div class="table-scroll">

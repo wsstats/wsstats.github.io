@@ -7,6 +7,7 @@ import {
     renderInterarrivalChart,
     renderIntensityChart,
     renderSumFrequencyChart,
+    renderClusterChart,
 } from "./charts.js";
 import { renderTable, renderGapTable } from "./tables.js";
 
@@ -21,11 +22,14 @@ const barsBox = document.getElementById("bars-toggle");
 const gapMaxBox = document.getElementById("gap-max-toggle");
 const gapMeanBox = document.getElementById("gap-mean-toggle");
 const gapMedianBox = document.getElementById("gap-median-toggle");
+const clusterMinEventsBox = document.getElementById("cluster-min-events");
+const clusterMaxGapBox = document.getElementById("cluster-max-gap");
 const emptyMsg = document.getElementById("empty-msg");
 const canvas1 = document.getElementById("chart1");
 const canvas2 = document.getElementById("chart2");
 const canvas3 = document.getElementById("chart3");
 const canvas4 = document.getElementById("chart4");
+const canvas5 = document.getElementById("chart5");
 
 //  State
 let rawData = [];  // [{timestamp: string, value: number}, ...]
@@ -33,6 +37,7 @@ let chart1 = null;
 let chart2 = null;
 let chart3 = null;
 let chart4 = null;
+let chart5 = null;
 
 //  Helpers
 
@@ -68,6 +73,7 @@ function render() {
     chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets, !specialBox.checked);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, activeBuckets, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
+    chart5 = renderClusterChart(chart5, canvas5, filtered, activeBuckets, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
 }
 
 function updateFavicon() {
@@ -133,6 +139,8 @@ async function init() {
     gapMaxBox.addEventListener("change", render);
     gapMeanBox.addEventListener("change", render);
     gapMedianBox.addEventListener("change", render);
+    clusterMinEventsBox.addEventListener("change", render);
+    clusterMaxGapBox.addEventListener("change", render);
 
     // Info panel toggle
     document.querySelector("main").addEventListener("click", e => {
