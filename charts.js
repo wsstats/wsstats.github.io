@@ -477,7 +477,7 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
                     type: "linear",
                     min: -0.5,
                     max: nX - 0.5,
-                    title: { display: true, text: xTitle, font: { size: 11 } },
+                    title: { display: false },
                     ticks: {
                         autoSkip: true,
                         maxRotation: 45,
@@ -740,7 +740,7 @@ export function renderClusterChart(oldChart, canvas, filtered, activeBuckets, mi
                     type: "linear",
                     min: -0.5,
                     max: labels.length - 0.5,
-                    title: { display: true, text: "Period", font: { size: 11 } },
+                    title: { display: false },
                     ticks: {
                         autoSkip: true,
                         maxRotation: 45,
