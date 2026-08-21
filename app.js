@@ -16,7 +16,6 @@ const { DateTime } = luxon;
 // DOM refs
 const dateFrom = document.getElementById("date-from");
 const dateTo = document.getElementById("date-to");
-const specialBox = document.getElementById("special-toggle");
 const cumsumBox = document.getElementById("cumsum-toggle");
 const barsBox = document.getElementById("bars-toggle");
 const gapMaxBox = document.getElementById("gap-max-toggle");
@@ -54,9 +53,9 @@ function render() {
     const fromVal = dateFrom.value;
     const toVal = dateTo.value;
 
-    const filtered = rawData.filter(({ timestamp, special }) => {
+    const filtered = rawData.filter(({ timestamp }) => {
         const day = timestamp.slice(0, 10); // "YYYY-MM-DD"
-        return (!fromVal || day >= fromVal) && (!toVal || day <= toVal) && (!specialBox.checked || special);
+        return (!fromVal || day >= fromVal) && (!toVal || day <= toVal);
     });
 
     const activeBuckets = getActiveBuckets();
@@ -70,7 +69,7 @@ function render() {
     renderGapTable(filtered);
     chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked);
     updateFavicon();
-    chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets, !specialBox.checked);
+    chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, activeBuckets, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
     chart5 = renderClusterChart(chart5, canvas5, filtered, activeBuckets, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
@@ -133,7 +132,6 @@ async function init() {
         dateTo.value = today.toISODate();
         render();
     });
-    specialBox.addEventListener("change", render);
     cumsumBox.addEventListener("change", render);
     barsBox.addEventListener("change", render);
     gapMaxBox.addEventListener("change", render);

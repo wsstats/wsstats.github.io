@@ -380,15 +380,40 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
 
 //  Activity intensity over time heatmap (chart2)
 
+/** Compute the [start, end) time range represented by a given (outer bucket, sub-slot) heatmap cell. */
+function cellTimeRange(finestType, outerKey, yi) {
+    if (finestType === "daily") {
+        const start = DateTime.fromISO(outerKey).plus({ hours: yi });
+        return { start, end: start.plus({ hours: 1 }) };
+    }
+    if (finestType === "weekly") {
+        const [y, w] = outerKey.split("-W");
+        const weekStart = DateTime.fromObject({ weekYear: +y, weekNumber: +w, weekday: 1 }).startOf("day");
+        const start = weekStart.plus({ days: yi });
+        return { start, end: start.plus({ days: 1 }) };
+    }
+    // monthly
+    const monthStart = DateTime.fromISO(outerKey + "-01");
+    if (yi >= monthStart.daysInMonth) return null;
+    const start = monthStart.plus({ days: yi });
+    return { start, end: start.plus({ days: 1 }) };
+}
+
+/** Format a window's [start, end) range for display, including dates only if it spans days. */
+function formatWindowRange(wStart, wEnd) {
+    const fmt = wStart.hasSame(wEnd, "day") ? "HH:mm" : "dd/MM HH:mm";
+    return `${wStart.toFormat(fmt)}\u2013${wEnd.toFormat(fmt)}`;
+}
+
 /**
  * @param {Chart|null} oldChart
  * @param {HTMLCanvasElement} canvas
  * @param {Array} filtered
  * @param {string[]} activeBuckets
- * @param {boolean} highlightSpecial — outline cells containing special-flagged entries
+ * @param {boolean} showWindows — overlay cells touched by an uncertainty window
  * @returns {Chart|null}
  */
-export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, highlightSpecial = true) {
+export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, showWindows = true) {
     if (oldChart) oldChart.destroy();
     if (filtered.length === 0) return null;
 
@@ -421,25 +446,79 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
 
     const nY = yLabels.length;
 
-    // Accumulate value sums into cells[xi][yi]
+    // Accumulate value sums into cells[xi][yi]; certainCells counts exact (non-windowed, or
+    // window-fits-in-cell) events, used to detect cells that mix exact and guessed timestamps.
     const cells = Array.from({ length: nX }, () => new Array(nY).fill(0));
-    const specialCells = Array.from({ length: nX }, () => new Array(nY).fill(0));
+    const certainCells = Array.from({ length: nX }, () => new Array(nY).fill(0));
+    // windowCells: 0 = none, 1 = within a window's span, 2 = the guessed timestamp of a window
+    const windowCells = Array.from({ length: nX }, () => new Array(nY).fill(0));
     let maxCount = 0;
-    for (const { timestamp, special } of filtered) {
+
+    // Windows fully contained within their own guess cell add no uncertainty at this bucket
+    // granularity (e.g. a several-hour window within one weekly/monthly cell) — treat as certain.
+    const overlayWindows = [];
+    for (const { timestamp, window } of filtered) {
         const dt = parseTs(timestamp);
         const xi = xLabelIdx.get(bucketKey(dt, finestType));
         if (xi === undefined) continue;
         const yi = ySlotFn(dt);
         cells[xi][yi] += 1;
-        if (special) specialCells[xi][yi] += 1;
         if (cells[xi][yi] > maxCount) maxCount = cells[xi][yi];
+
+        if (!window) {
+            certainCells[xi][yi] += 1;
+            continue;
+        }
+
+        const wStart = parseTs(window.start);
+        const wEnd = parseTs(window.end);
+        const guessRange = cellTimeRange(finestType, xLabels[xi], yi);
+        const fitsInCell = guessRange && wStart >= guessRange.start && wEnd <= guessRange.end;
+        if (fitsInCell) {
+            certainCells[xi][yi] += 1;
+        } else {
+            overlayWindows.push({ xi, yi, wStart, wEnd, label: formatWindowRange(wStart, wEnd) });
+        }
+    }
+
+    if (showWindows) {
+        for (const ow of overlayWindows) {
+            const region = [];
+            for (let xi = 0; xi < nX; xi++) {
+                for (let yi = 0; yi < nY; yi++) {
+                    const range = cellTimeRange(finestType, xLabels[xi], yi);
+                    if (!range) continue;
+                    if (range.start < ow.wEnd && range.end > ow.wStart) {
+                        windowCells[xi][yi] = Math.max(windowCells[xi][yi], 1);
+                        region.push([xi, yi]);
+                    }
+                }
+            }
+            ow.region = region;
+        }
+        for (const { xi, yi } of overlayWindows) {
+            windowCells[xi][yi] = 2;
+        }
+    }
+
+    // Collect every guessed window's label per cell, since a cell can hold multiple guesses.
+    const guessLabels = new Map(); // "xi,yi" -> label[]
+    for (const { xi, yi, label } of overlayWindows) {
+        const key = `${xi},${yi}`;
+        if (!guessLabels.has(key)) guessLabels.set(key, []);
+        guessLabels.get(key).push(label);
     }
 
     const points = [];
     for (let xi = 0; xi < nX; xi++) {
         for (let yi = 0; yi < nY; yi++) {
-            if (cells[xi][yi] > 0)
-                points.push({ x: xi, y: yi, count: cells[xi][yi], specialCount: specialCells[xi][yi] });
+            if (cells[xi][yi] > 0 || windowCells[xi][yi] > 0) {
+                const windowState = windowCells[xi][yi];
+                points.push({
+                    x: xi, y: yi, count: cells[xi][yi], windowState,
+                    guessLabels: windowState === 2 ? guessLabels.get(`${xi},${yi}`) : undefined,
+                });
+            }
         }
     }
 
@@ -459,15 +538,26 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
             interaction: { mode: "nearest", intersect: true },
             plugins: {
                 legend: { display: false },
-                heatmap: { cells, nX, nY, maxCount, specialCells: highlightSpecial ? specialCells : undefined },
+                heatmap: {
+                    cells, nX, nY, maxCount,
+                    windowCells: showWindows ? windowCells : undefined,
+                    windowRegions: showWindows ? overlayWindows.map(ow => ow.region) : undefined,
+                    certainCells: showWindows ? certainCells : undefined,
+                },
                 tooltip: {
+                    // Suppress the tooltip only for cells shaded purely by a window's span with no actual event in them.
+                    filter: item => !(item.raw.windowState === 1 && item.raw.count === 0),
                     callbacks: {
                         label(ctx) {
-                            const { x: xi, y: yi, count, specialCount } = ctx.raw;
-                            const countText = specialCount === 0 ? `${count}`
-                                : specialCount === count ? `(${count})`
-                                    : `${count} (${specialCount})`;
-                            return `${xLabels[xi]}, ${yLabels[yi]}: ${countText}`;
+                            const { x: xi, y: yi, count, windowState, guessLabels } = ctx.raw;
+                            let suffix = "";
+                            if (windowState === 2) {
+                                const uniqueLabels = [...new Set(guessLabels)];
+                                const guessWord = guessLabels.length === 1 ? "guess" : "guesses";
+                                const windowWord = uniqueLabels.length === 1 ? "window" : "windows";
+                                suffix = ` (${guessLabels.length} ${guessWord}, ${windowWord} ${uniqueLabels.join(", ")})`;
+                            }
+                            return `${xLabels[xi]}, ${yLabels[yi]}: ${count}${suffix}`;
                         },
                     },
                 },
