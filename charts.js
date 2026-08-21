@@ -380,23 +380,58 @@ export function renderInterarrivalChart(oldChart, canvas, filtered, activeBucket
 
 //  Activity intensity over time heatmap (chart2)
 
-/** Compute the [start, end) time range represented by a given (outer bucket, sub-slot) heatmap cell. */
-function cellTimeRange(finestType, outerKey, yi) {
-    if (finestType === "daily") {
-        const start = DateTime.fromISO(outerKey).plus({ hours: yi });
-        return { start, end: start.plus({ hours: 1 }) };
+/**
+ * Compute the [start, end) millisecond range of every sub-slot in one outer bucket column.
+ * Built per column (rather than per cell) so the Luxon work is shared by all cells in it.
+ * @returns {Array<{s: number, e: number}|null>} nY entries; null for slots the column lacks.
+ */
+function buildRowRanges(finestType, outerKey, nY) {
+    const base = parseKey(outerKey, finestType).startOf("day");
+    const unit = finestType === "daily" ? "hours" : "days";
+    const limit = finestType === "monthly" ? Math.min(nY, base.daysInMonth) : nY;
+    const row = new Array(nY).fill(null);
+    let start = base;
+    for (let yi = 0; yi < limit; yi++) {
+        const end = base.plus({ [unit]: yi + 1 });
+        row[yi] = { s: start.toMillis(), e: end.toMillis() };
+        start = end;
     }
-    if (finestType === "weekly") {
-        const [y, w] = outerKey.split("-W");
-        const weekStart = DateTime.fromObject({ weekYear: +y, weekNumber: +w, weekday: 1 }).startOf("day");
-        const start = weekStart.plus({ days: yi });
-        return { start, end: start.plus({ days: 1 }) };
+    return row;
+}
+
+/** First index of the ascending array `arr` whose value is > `v`. */
+function upperBound(arr, v) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (arr[mid] <= v) lo = mid + 1; else hi = mid;
     }
-    // monthly
-    const monthStart = DateTime.fromISO(outerKey + "-01");
-    if (yi >= monthStart.daysInMonth) return null;
-    const start = monthStart.plus({ days: yi });
-    return { start, end: start.plus({ days: 1 }) };
+    return lo;
+}
+
+/** First index of the ascending array `arr` whose value is >= `v`. */
+function lowerBound(arr, v) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (arr[mid] < v) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+}
+
+/** Outline a window's region: emit its outer edges as a flat [x0,y0,x1,y1,…] list in cell-index space. */
+function regionBorders(region, nY, out) {
+    const inRegion = new Set(region.map(([xi, yi]) => xi * nY + yi));
+    for (const [xi, yi] of region) {
+        if (!inRegion.has((xi - 1) * nY + yi))
+            out.push(xi - 0.5, yi - 0.5, xi - 0.5, yi + 0.5);
+        if (!inRegion.has((xi + 1) * nY + yi))
+            out.push(xi + 0.5, yi - 0.5, xi + 0.5, yi + 0.5);
+        if (yi === 0 || !inRegion.has(xi * nY + yi - 1))
+            out.push(xi - 0.5, yi - 0.5, xi + 0.5, yi - 0.5);
+        if (yi === nY - 1 || !inRegion.has(xi * nY + yi + 1))
+            out.push(xi - 0.5, yi + 0.5, xi + 0.5, yi + 0.5);
+    }
 }
 
 /** Format a window's [start, end) range for display, including dates only if it spans days. */
@@ -454,9 +489,16 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
     const windowCells = Array.from({ length: nX }, () => new Array(nY).fill(0));
     let maxCount = 0;
 
+    // Column boundaries in millis, used to narrow a window's overlap scan to the columns it can touch.
+    const outerStartMs = xLabels.map(k => parseKey(k, finestType).startOf("day").toMillis());
+    const rowCache = new Array(nX);
+    const rowRanges = xi => rowCache[xi] ?? (rowCache[xi] = buildRowRanges(finestType, xLabels[xi], nY));
+
     // Windows fully contained within their own guess cell add no uncertainty at this bucket
     // granularity (e.g. a several-hour window within one weekly/monthly cell) — treat as certain.
+    // Identical windows are shared, so their region is computed only once.
     const overlayWindows = [];
+    const uniqueWindows = new Map(); // "start|end" -> { wStartMs, wEndMs }
     for (const { timestamp, window } of filtered) {
         const dt = parseTs(timestamp);
         const xi = xLabelIdx.get(bucketKey(dt, finestType));
@@ -472,29 +514,37 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
 
         const wStart = parseTs(window.start);
         const wEnd = parseTs(window.end);
-        const guessRange = cellTimeRange(finestType, xLabels[xi], yi);
-        const fitsInCell = guessRange && wStart >= guessRange.start && wEnd <= guessRange.end;
+        const wStartMs = wStart.toMillis();
+        const wEndMs = wEnd.toMillis();
+        const guessRange = rowRanges(xi)[yi];
+        const fitsInCell = guessRange && wStartMs >= guessRange.s && wEndMs <= guessRange.e;
         if (fitsInCell) {
             certainCells[xi][yi] += 1;
         } else {
-            overlayWindows.push({ xi, yi, wStart, wEnd, label: formatWindowRange(wStart, wEnd) });
+            const key = `${window.start}|${window.end}`;
+            if (!uniqueWindows.has(key)) uniqueWindows.set(key, { wStartMs, wEndMs });
+            overlayWindows.push({ xi, yi, key, label: formatWindowRange(wStart, wEnd) });
         }
     }
 
+    const windowBorders = [];
     if (showWindows) {
-        for (const ow of overlayWindows) {
+        for (const uw of uniqueWindows.values()) {
             const region = [];
-            for (let xi = 0; xi < nX; xi++) {
+            const firstX = Math.max(0, upperBound(outerStartMs, uw.wStartMs) - 1);
+            const lastX = lowerBound(outerStartMs, uw.wEndMs) - 1;
+            for (let xi = firstX; xi <= lastX; xi++) {
+                const row = rowRanges(xi);
                 for (let yi = 0; yi < nY; yi++) {
-                    const range = cellTimeRange(finestType, xLabels[xi], yi);
+                    const range = row[yi];
                     if (!range) continue;
-                    if (range.start < ow.wEnd && range.end > ow.wStart) {
+                    if (range.s < uw.wEndMs && range.e > uw.wStartMs) {
                         windowCells[xi][yi] = Math.max(windowCells[xi][yi], 1);
                         region.push([xi, yi]);
                     }
                 }
             }
-            ow.region = region;
+            regionBorders(region, nY, windowBorders);
         }
         for (const { xi, yi } of overlayWindows) {
             windowCells[xi][yi] = 2;
@@ -509,14 +559,25 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
         guessLabels.get(key).push(label);
     }
 
+    // Sparse list of the only cells the heatmap plugin has to paint, so its draw pass
+    // does not rescan the full nX*nY grid on every render.
+    const drawCells = [];
     const points = [];
     for (let xi = 0; xi < nX; xi++) {
         for (let yi = 0; yi < nY; yi++) {
-            if (cells[xi][yi] > 0 || windowCells[xi][yi] > 0) {
-                const windowState = windowCells[xi][yi];
+            const count = cells[xi][yi];
+            const windowState = windowCells[xi][yi];
+            if (count > 0 || windowState > 0) {
                 points.push({
-                    x: xi, y: yi, count: cells[xi][yi], windowState,
+                    x: xi, y: yi, count, windowState,
                     guessLabels: windowState === 2 ? guessLabels.get(`${xi},${yi}`) : undefined,
+                });
+            }
+            if (count > 0) {
+                const guess = showWindows && windowState === 2;
+                drawCells.push({
+                    x: xi, y: yi, count, guess,
+                    mixed: guess && certainCells[xi][yi] > 0,
                 });
             }
         }
@@ -539,10 +600,8 @@ export function renderIntensityChart(oldChart, canvas, filtered, activeBuckets, 
             plugins: {
                 legend: { display: false },
                 heatmap: {
-                    cells, nX, nY, maxCount,
-                    windowCells: showWindows ? windowCells : undefined,
-                    windowRegions: showWindows ? overlayWindows.map(ow => ow.region) : undefined,
-                    certainCells: showWindows ? certainCells : undefined,
+                    cells: drawCells, nX, nY, maxCount,
+                    windowBorders: showWindows ? windowBorders : undefined,
                 },
                 tooltip: {
                     // Suppress the tooltip only for cells shaded purely by a window's span with no actual event in them.
