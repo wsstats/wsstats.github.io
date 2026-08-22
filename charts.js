@@ -752,7 +752,7 @@ export function renderSumFrequencyChart(oldChart, canvas, filtered, activeBucket
             interaction: { mode: "nearest", intersect: true },
             plugins: {
                 legend: { display: false },
-                heatmap: { cells, nX, nY, maxCount },
+                heatmap: { cells: points, nX, nY, maxCount },
                 tooltip: {
                     callbacks: {
                         label(ctx) {
