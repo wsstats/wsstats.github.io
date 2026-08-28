@@ -62,6 +62,14 @@
                     <input type="checkbox" id="typebg-toggle" />
                     Type
                 </label>
+                <label class="cumsum-control">
+                    <input type="checkbox" id="milestone-toggle" />
+                    Milestones
+                </label>
+                <label class="spinbox-control">
+                    every
+                    <input type="number" id="milestone-step" min="1" step="1" value="20" />
+                </label>
                 <div class="chart-actions">
                     <button class="export-btn" aria-label="Copy chart as PNG" title="Copy to clipboard"
                         data-canvas="chart1">📷</button>
@@ -78,6 +86,10 @@
                     <p><strong>How to read it:</strong> Hover over a column to see the exact count for every hour. When
                         the <em>Cumulative</em> toggle is on, a red line on the right axis shows the running total of
                         all events.</p>
+                    <p><strong>Milestones:</strong> When enabled, a dashed vertical line marks each bucket in which the
+                        running total first reached the next multiple of the chosen increment. Because buckets group
+                        several events together the total can jump past a multiple, so the line sits at the first bucket
+                        equalling or exceeding it.</p>
                     <p><strong>What to look for:</strong> Tall columns mark high-activity periods. The colour mix
                         reveals which hours of the day drive the volume. A steepening cumulative slope signals
                         acceleration; a flattening slope signals slowdown. The <em>Type</em> toggle shades each

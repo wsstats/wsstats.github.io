@@ -154,3 +154,56 @@ export const typeBackgroundPlugin = {
     },
 };
 
+//  milestoneLinesPlugin
+
+/**
+ * Custom plugin: draws a labelled vertical line at each bucket where the running total first
+ * reached a milestone. Reads config from chart.options.plugins.milestoneLines.
+ */
+export const milestoneLinesPlugin = {
+    id: "milestoneLines",
+    afterDatasetsDraw(chart) {
+        const cfg = chart.options.plugins?.milestoneLines;
+        if (!cfg?.enabled) return;
+        const { marks } = cfg;
+        if (!marks?.length) return;
+
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        const ctx = chart.ctx;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(xScale.left, yScale.top, xScale.width, yScale.height);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(17, 24, 39, 0.55)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.font = "10px sans-serif";
+        ctx.fillStyle = "rgba(17, 24, 39, 0.75)";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+
+        // Milestones sharing a bucket draw the same line; label it with the highest value reached
+        // there and the gap back to the previous distinct bucket.
+        const byIndex = new Map();
+        for (const { index, value, days } of marks) {
+            const entry = byIndex.get(index);
+            if (entry) entry.value = value;
+            else byIndex.set(index, { value, days });
+        }
+
+        for (const [index, { value, days }] of byIndex) {
+            const x = Math.round(xScale.getPixelForValue(index)) + 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x, yScale.top);
+            ctx.lineTo(x, yScale.bottom);
+            ctx.stroke();
+            ctx.fillText(String(value), x + 3, yScale.top + 2);
+            ctx.fillText(`+${days}d`, x + 3, yScale.top + 13);
+        }
+
+        ctx.restore();
+    },
+};
+

@@ -19,6 +19,8 @@ const dateTo = document.getElementById("date-to");
 const cumsumBox = document.getElementById("cumsum-toggle");
 const barsBox = document.getElementById("bars-toggle");
 const typeBgBox = document.getElementById("typebg-toggle");
+const milestoneBox = document.getElementById("milestone-toggle");
+const milestoneStepBox = document.getElementById("milestone-step");
 const gapMaxBox = document.getElementById("gap-max-toggle");
 const gapMeanBox = document.getElementById("gap-mean-toggle");
 const gapMedianBox = document.getElementById("gap-median-toggle");
@@ -68,7 +70,7 @@ function render() {
 
     renderTable(filtered, fromVal, toVal);
     renderGapTable(filtered);
-    chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked, typeBgBox.checked);
+    chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked, typeBgBox.checked, milestoneBox.checked, +milestoneStepBox.value);
     updateFavicon();
     chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
@@ -136,6 +138,8 @@ async function init() {
     cumsumBox.addEventListener("change", render);
     barsBox.addEventListener("change", render);
     typeBgBox.addEventListener("change", render);
+    milestoneBox.addEventListener("change", render);
+    milestoneStepBox.addEventListener("change", render);
     gapMaxBox.addEventListener("change", render);
     gapMeanBox.addEventListener("change", render);
     gapMedianBox.addEventListener("change", render);

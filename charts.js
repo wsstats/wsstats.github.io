@@ -1,7 +1,7 @@
 /* global luxon, Chart */
 
 import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucketHour } from "./utils.js";
-import { heatmapPlugin, typeBackgroundPlugin } from "./plugins.js";
+import { heatmapPlugin, typeBackgroundPlugin, milestoneLinesPlugin } from "./plugins.js";
 
 const { DateTime } = luxon;
 
@@ -48,15 +48,71 @@ const TOD_COLORS = TOD_HOURS.map((_, i) => ({
 
 //  Time-of-day stacked area / bar chart (chart1)
 
+/** Running total of `filtered` aligned to `labels` (one value per bucket, carried forward). */
+function _alignedCumsum(filtered, labels, finestType) {
+    const dailyMap = bucket(filtered, "daily");
+
+    if (finestType === "daily") {
+        let acc = 0;
+        return labels.map(dayKey => {
+            const v = dailyMap.get(dayKey);
+            if (v != null) acc += v;
+            return acc;
+        });
+    }
+
+    const cumsumArr = cumsum(dailyMap);
+    const dailyCumsumMap = new Map(
+        [...dailyMap.keys()].map((k, i) => [k, cumsumArr[i]])
+    );
+    let lastCs = 0;
+    return labels.map(bucketLabel => {
+        let periodMax = null;
+        for (const [dayKey, cs] of dailyCumsumMap) {
+            if (bucketKey(DateTime.fromISO(dayKey), finestType) === bucketLabel) {
+                if (periodMax === null || cs > periodMax) periodMax = cs;
+            }
+        }
+        if (periodMax !== null) lastCs = periodMax;
+        return lastCs;
+    });
+}
+
+/**
+ * Bucket indices at which the running total first reaches each successive multiple of `step`.
+ * Buckets aggregate several days, so the total can jump past a multiple — the line is placed at
+ * the first bucket equalling or exceeding it, and skipped multiples share that bucket.
+ * Each mark carries `days`, the gap to the previous milestone's bucket (or to the start of the
+ * range for the first one).
+ */
+function _milestoneMarks(cumsumAligned, step, labels, finestType) {
+    if (!(step > 0)) return [];
+    const marks = [];
+    let next = step;
+    let prevIndex = 0;
+    for (let i = 0; i < cumsumAligned.length; i++) {
+        while (cumsumAligned[i] >= next) {
+            const days = Math.round(
+                parseKey(labels[i], finestType).diff(parseKey(labels[prevIndex], finestType), "days").days
+            );
+            marks.push({ index: i, value: next, days });
+            prevIndex = i;
+            next += step;
+        }
+    }
+    return marks;
+}
+
 /**
  * @param {Chart|null} oldChart
  * @param {HTMLCanvasElement} canvas
  * @param {Array} filtered
  * @param {string[]} activeBuckets
  * @param {boolean} showTypeBg — shade each bucket's background by its dominant record type
+ * @param {boolean} showMilestones — draw a vertical line each time the running total gains `milestoneStep`
  * @returns {Chart|null}
  */
-export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCumsum, showBars = false, showTypeBg = false) {
+export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCumsum, showBars = false, showTypeBg = false, showMilestones = false, milestoneStep = 20) {
     if (oldChart) oldChart.destroy();
 
     const finestType = activeBuckets[0];
@@ -112,35 +168,12 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
         return ds;
     });
 
+    const cumsumAligned = (showCumsum || showMilestones)
+        ? _alignedCumsum(filtered, labels, finestType)
+        : null;
+    const milestones = showMilestones ? _milestoneMarks(cumsumAligned, milestoneStep, labels, finestType) : [];
+
     if (showCumsum) {
-        const dailyMap = bucket(filtered, "daily");
-        const cumsumArr = cumsum(dailyMap);
-        let cumsumAligned;
-
-        if (finestType === "daily") {
-            let acc = 0;
-            cumsumAligned = labels.map(dayKey => {
-                const v = dailyMap.get(dayKey);
-                if (v != null) acc += v;
-                return acc;
-            });
-        } else {
-            const dailyCumsumMap = new Map(
-                [...dailyMap.keys()].map((k, i) => [k, cumsumArr[i]])
-            );
-            let lastCs = 0;
-            cumsumAligned = labels.map(bucketLabel => {
-                let periodMax = null;
-                for (const [dayKey, cs] of dailyCumsumMap) {
-                    if (bucketKey(DateTime.fromISO(dayKey), finestType) === bucketLabel) {
-                        if (periodMax === null || cs > periodMax) periodMax = cs;
-                    }
-                }
-                if (periodMax !== null) lastCs = periodMax;
-                return lastCs;
-            });
-        }
-
         datasets.push({
             type: "line",
             label: "Cumulative",
@@ -209,6 +242,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             plugins: {
                 legend: { display: false },
                 typeBackground: { enabled: showTypeBg, types: dominantTypes },
+                milestoneLines: { enabled: showMilestones, marks: milestones },
                 tooltip: {
                     mode: "index",
                     intersect: false,
@@ -245,7 +279,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             },
             scales,
         },
-        plugins: [typeBackgroundPlugin],
+        plugins: [typeBackgroundPlugin, milestoneLinesPlugin],
     });
 }
 
