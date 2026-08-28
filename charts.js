@@ -1,7 +1,7 @@
 /* global luxon, Chart */
 
 import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucketHour } from "./utils.js";
-import { heatmapPlugin, typeBackgroundPlugin, milestoneLinesPlugin } from "./plugins.js";
+import { heatmapPlugin, typeBackgroundPlugin, milestoneLinesPlugin, cumsumFocusPlugin } from "./plugins.js";
 
 const { DateTime } = luxon;
 
@@ -181,8 +181,8 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             borderColor: "rgba(239, 68, 68, 0.9)",
             backgroundColor: "transparent",
             borderWidth: 2,
-            pointRadius: 2,
-            stepped: "after",
+            pointRadius: 0,
+            tension: 0.4,
             fill: false,
             yAxisID: "y2",
             order: -1,
@@ -279,7 +279,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             },
             scales,
         },
-        plugins: [typeBackgroundPlugin, milestoneLinesPlugin],
+        plugins: [typeBackgroundPlugin, milestoneLinesPlugin, cumsumFocusPlugin],
     });
 }
 
