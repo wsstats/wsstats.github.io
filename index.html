@@ -58,6 +58,10 @@
                     <input type="checkbox" id="cumsum-toggle" />
                     Cumulative
                 </label>
+                <label class="cumsum-control">
+                    <input type="checkbox" id="typebg-toggle" />
+                    Type
+                </label>
                 <div class="chart-actions">
                     <button class="export-btn" aria-label="Copy chart as PNG" title="Copy to clipboard"
                         data-canvas="chart1">📷</button>
@@ -76,7 +80,9 @@
                         all events.</p>
                     <p><strong>What to look for:</strong> Tall columns mark high-activity periods. The colour mix
                         reveals which hours of the day drive the volume. A steepening cumulative slope signals
-                        acceleration; a flattening slope signals slowdown.</p>
+                        acceleration; a flattening slope signals slowdown. The <em>Type</em> toggle shades each
+                        column's full height by its most common record type, so runs of one dominant type stand out
+                        as a single-coloured band.</p>
                 </div>
             </div>
         </div>

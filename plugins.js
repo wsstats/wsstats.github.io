@@ -91,3 +91,66 @@ export const heatmapPlugin = {
     },
 };
 
+//  typeBackgroundPlugin
+
+// Muted, mutually distinct hues cycled by record type so any integer type value gets a stable colour.
+const TYPE_BG_PALETTE = [
+    "99, 102, 241",   // indigo
+    "236, 72, 153",   // pink
+    "16, 185, 129",   // emerald
+    "245, 158, 11",   // amber
+    "59, 130, 246",   // blue
+    "168, 85, 247",   // purple
+    "239, 68, 68",    // red
+    "20, 184, 166",   // teal
+    "234, 179, 8",    // yellow
+];
+
+/** Muted, low-opacity background colour for a given record type. */
+export function typeBgColor(type, alpha = 0.14) {
+    const idx = ((type % TYPE_BG_PALETTE.length) + TYPE_BG_PALETTE.length) % TYPE_BG_PALETTE.length;
+    return `rgba(${TYPE_BG_PALETTE[idx]}, ${alpha})`;
+}
+
+/**
+ * Custom plugin: shades the full plot height behind each x-axis bucket with the colour of its
+ * dominant record type. Bands are contiguous (no gaps) and drawn before datasets so bars/lines
+ * render on top. Reads config from chart.options.plugins.typeBackground.
+ */
+export const typeBackgroundPlugin = {
+    id: "typeBackground",
+    beforeDatasetsDraw(chart) {
+        const cfg = chart.options.plugins?.typeBackground;
+        if (!cfg?.enabled) return;
+        const { types } = cfg;
+        if (!types?.length) return;
+
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        const ctx = chart.ctx;
+        const n = types.length;
+
+        // Boundary between bucket i-1 and i; the first/last band extends to the plot edges.
+        const boundary = i => {
+            if (i <= 0) return xScale.left;
+            if (i >= n) return xScale.right;
+            return (xScale.getPixelForValue(i - 1) + xScale.getPixelForValue(i)) / 2;
+        };
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(xScale.left, yScale.top, xScale.width, yScale.height);
+        ctx.clip();
+
+        for (let i = 0; i < n; i++) {
+            if (types[i] == null) continue;
+            const x0 = boundary(i);
+            const x1 = boundary(i + 1);
+            ctx.fillStyle = typeBgColor(types[i]);
+            ctx.fillRect(x0, yScale.top, x1 - x0, yScale.height);
+        }
+
+        ctx.restore();
+    },
+};
+

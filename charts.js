@@ -1,7 +1,7 @@
 /* global luxon, Chart */
 
 import { bucket, fillGaps, cumsum, bucketKey, parseKey, parseTs, todBucketHour } from "./utils.js";
-import { heatmapPlugin } from "./plugins.js";
+import { heatmapPlugin, typeBackgroundPlugin } from "./plugins.js";
 
 const { DateTime } = luxon;
 
@@ -53,9 +53,10 @@ const TOD_COLORS = TOD_HOURS.map((_, i) => ({
  * @param {HTMLCanvasElement} canvas
  * @param {Array} filtered
  * @param {string[]} activeBuckets
+ * @param {boolean} showTypeBg — shade each bucket's background by its dominant record type
  * @returns {Chart|null}
  */
-export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCumsum, showBars = false) {
+export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCumsum, showBars = false, showTypeBg = false) {
     if (oldChart) oldChart.destroy();
 
     const finestType = activeBuckets[0];
@@ -66,13 +67,30 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     let labels = [...finestFilled.keys()];
 
     const todMaps = new Map(TOD_HOURS.map(t => [t, new Map()]));
-    for (const { timestamp } of filtered) {
+    const typeCountsByBucket = new Map();
+    for (const { timestamp, type } of filtered) {
         const dt = parseTs(timestamp);
         const dk = bucketKey(dt, finestType);
         const tk = todBucketHour(dt);
         const sub = todMaps.get(tk);
         sub.set(dk, (sub.get(dk) ?? 0) + 1);
+
+        if (type == null) continue;
+        if (!typeCountsByBucket.has(dk)) typeCountsByBucket.set(dk, new Map());
+        const typeCounts = typeCountsByBucket.get(dk);
+        typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
     }
+
+    // Most frequent type per bucket; ties keep whichever type was seen first.
+    let dominantTypes = labels.map(key => {
+        const typeCounts = typeCountsByBucket.get(key);
+        if (!typeCounts) return null;
+        let best = null, bestCount = -1;
+        for (const [t, c] of typeCounts) {
+            if (c > bestCount) { best = t; bestCount = c; }
+        }
+        return best;
+    });
 
     const datasets = TOD_HOURS.map((tod, i) => {
         const c = TOD_COLORS[i];
@@ -142,6 +160,7 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
     // horizontal line with a filled area beneath it rather than a lone dot.
     if (!showBars && labels.length === 1) {
         labels = [labels[0], labels[0]];
+        dominantTypes = [dominantTypes[0], dominantTypes[0]];
         for (const ds of datasets) {
             ds.data = [ds.data[0], ds.data[0]];
         }
@@ -185,12 +204,14 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: true },
+            // intersect: false so the background (which can span above/below the actual bars/line) is hoverable too.
+            interaction: { mode: "index", intersect: false },
             plugins: {
                 legend: { display: false },
+                typeBackground: { enabled: showTypeBg, types: dominantTypes },
                 tooltip: {
                     mode: "index",
-                    intersect: true,
+                    intersect: false,
                     itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
                     callbacks: {
                         title(tooltipItems) {
@@ -214,13 +235,17 @@ export function renderTodChart(oldChart, canvas, filtered, activeBuckets, showCu
                                 if (item.dataset.yAxisID === "y2") return sum;
                                 return sum + (item.parsed.y || 0);
                             }, 0);
-                            return `Total: ${total}`;
+                            const lines = [`Total: ${total}`];
+                            const domType = showTypeBg ? dominantTypes[tooltipItems[0]?.dataIndex] : null;
+                            if (domType != null) lines.push(`Dominant type: ${domType}`);
+                            return lines;
                         },
                     },
                 },
             },
             scales,
         },
+        plugins: [typeBackgroundPlugin],
     });
 }
 
