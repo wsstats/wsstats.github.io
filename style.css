@@ -129,6 +129,8 @@ h1 {
     font-size: 0.85rem;
     cursor: pointer;
     user-select: none;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .cumsum-control input[type="checkbox"] {
@@ -187,6 +189,7 @@ main {
     border-bottom: 1px solid #eee;
     flex-shrink: 0;
     gap: 0.5rem;
+    overflow-x: auto;
 }
 
 .chart-title {
@@ -196,8 +199,7 @@ main {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .chart-actions {
