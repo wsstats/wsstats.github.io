@@ -323,6 +323,28 @@ main {
     margin: 0;
 }
 
+.pct-pos,
+.pct-neg,
+.pct-zero {
+    font-size: 0.8em;
+    opacity: 0.75;
+    margin-left: 1.5ch;
+}
+
+.pct-pos {
+    color: #16a34a;
+    font-weight: 500;
+}
+
+.pct-neg {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.pct-zero {
+    color: #888;
+}
+
 #stats-table,
 #gap-table {
     width: 100%;
@@ -336,17 +358,8 @@ main {
 #gap-table th,
 #gap-table td {
     padding: 0.45rem 0.75rem;
-    text-align: right;
-    white-space: nowrap;
-}
-
-#stats-table th:nth-child(1),
-#stats-table th:nth-child(2),
-#stats-table td.col-label,
-#gap-table th:nth-child(1),
-#gap-table th:nth-child(2),
-#gap-table td.col-label {
     text-align: left;
+    white-space: nowrap;
 }
 
 #stats-table thead th,

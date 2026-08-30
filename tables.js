@@ -5,6 +5,15 @@ import { computeMonthlyStats, computeGapStats } from "./data.js";
 
 const { DateTime } = luxon;
 
+/** Returns an inline coloured % badge relative to prev; empty string when no previous. */
+function pctBadge(current, prev) {
+    if (prev == null || prev === 0) return '';
+    const pct = (current - prev) / Math.abs(prev) * 100;
+    const sign = pct > 0 ? '+' : '';
+    const cls = pct > 0 ? 'pct-pos' : pct < 0 ? 'pct-neg' : 'pct-zero';
+    return `<span class="${cls}">${sign}${pct.toFixed(1)}%</span>`;
+}
+
 //  Monthly stats table
 
 export function renderTable(filtered, fromVal, toVal) {
@@ -31,6 +40,9 @@ export function renderTable(filtered, fromVal, toVal) {
     const startDt = DateTime.fromISO(fromVal || allKeys[0]);
     const endDt = DateTime.fromISO(toVal || allKeys[allKeys.length - 1]);
 
+    let prevMon = null;
+    let prevYear = null;
+
     for (const [year, yearRows] of rowsByYear) {
         for (let i = 0; i < yearRows.length; i++) {
             const row = yearRows[i];
@@ -41,12 +53,13 @@ export function renderTable(filtered, fromVal, toVal) {
             tr.innerHTML =
                 yearCell +
                 `<td class="col-label">${row.month}</td>` +
-                `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}</td>` +
-                `<td>${row.median.toFixed(1)}</td>` +
+                `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}${pctBadge(row.mean, prevMon?.mean)}</td>` +
+                `<td>${row.median.toFixed(1)}${pctBadge(row.median, prevMon?.median)}</td>` +
                 `<td>${row.modes.join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
-                `<td>${row.min} <span class="count">(×${row.minCount})</span></td>` +
-                `<td>${row.max} <span class="count">(×${row.maxCount})</span></td>` +
-                `<td>${row.total}</td>`;
+                `<td>${row.min} <span class="count">(×${row.minCount})</span>${pctBadge(row.min, prevMon?.min)}</td>` +
+                `<td>${row.max} <span class="count">(×${row.maxCount})</span>${pctBadge(row.max, prevMon?.max)}</td>` +
+                `<td>${row.total}${pctBadge(row.total, prevMon?.total)}</td>`;
+            prevMon = row;
             tbody.appendChild(tr);
         }
 
@@ -80,12 +93,13 @@ export function renderTable(filtered, fromVal, toVal) {
                 tr.className = "year-total-row";
                 tr.innerHTML =
                     `<td class="col-label" colspan="2">${year} total</td>` +
-                    `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}</td>` +
-                    `<td>${yMedian.toFixed(1)}</td>` +
+                    `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}${pctBadge(yMean, prevYear?.mean)}</td>` +
+                    `<td>${yMedian.toFixed(1)}${pctBadge(yMedian, prevYear?.median)}</td>` +
                     `<td>${yModes.join(', ')} <span class="count">(×${yModeCount})</span></td>` +
-                    `<td>${yMin} <span class="count">(×${yFreq.get(yMin)})</span></td>` +
-                    `<td>${yMax} <span class="count">(×${yFreq.get(yMax)})</span></td>` +
-                    `<td>${yTotal}</td>`;
+                    `<td>${yMin} <span class="count">(×${yFreq.get(yMin)})</span>${pctBadge(yMin, prevYear?.min)}</td>` +
+                    `<td>${yMax} <span class="count">(×${yFreq.get(yMax)})</span>${pctBadge(yMax, prevYear?.max)}</td>` +
+                    `<td>${yTotal}${pctBadge(yTotal, prevYear?.total)}</td>`;
+                prevYear = { mean: yMean, median: yMedian, min: yMin, max: yMax, total: yTotal };
                 tbody.appendChild(tr);
             }
         }
@@ -171,10 +185,13 @@ export function renderGapTable(filtered) {
         }
     }
 
+    let prevMon = null;
+    let prevYear = null;
     let isFirstGapRow = true;
     for (const [year, yearRows] of rowsByYear) {
         for (let i = 0; i < yearRows.length; i++) {
             const row = yearRows[i];
+            const adjustedTotal = isFirstGapRow ? row.total + 1 : row.total;
             const tr = document.createElement("tr");
             const yearCell = i === 0
                 ? `<td class="col-label" rowspan="${yearRows.length}">${year}</td>`
@@ -182,12 +199,13 @@ export function renderGapTable(filtered) {
             tr.innerHTML =
                 yearCell +
                 `<td class="col-label">${row.month}</td>` +
-                `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}</td>` +
-                `<td>${row.median.toFixed(1)}</td>` +
+                `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}${pctBadge(row.mean, prevMon?.mean)}</td>` +
+                `<td>${row.median.toFixed(1)}${pctBadge(row.median, prevMon?.median)}</td>` +
                 `<td>${row.modes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
-                `<td>${row.min.toFixed(1)} <span class="count">(×${row.minCount})</span></td>` +
-                `<td>${row.max.toFixed(1)} <span class="count">(×${row.maxCount})</span></td>` +
-                `<td>${isFirstGapRow ? row.total + 1 : row.total}</td>`;
+                `<td>${row.min.toFixed(1)} <span class="count">(×${row.minCount})</span>${pctBadge(row.min, prevMon?.min)}</td>` +
+                `<td>${row.max.toFixed(1)} <span class="count">(×${row.maxCount})</span>${pctBadge(row.max, prevMon?.max)}</td>` +
+                `<td>${adjustedTotal}${pctBadge(adjustedTotal, prevMon?.total)}</td>`;
+            prevMon = { mean: row.mean, median: row.median, min: row.min, max: row.max, total: adjustedTotal };
             isFirstGapRow = false;
             tbody.appendChild(tr);
         }
@@ -215,16 +233,18 @@ export function renderGapTable(filtered) {
                 const yMax = ySorted[yn - 1];
                 const yMinCount = ySorted.filter(v => v === yMin).length;
                 const yMaxCount = ySorted.filter(v => v === yMax).length;
+                const yAdjTotal = (year === firstEventYear) ? yn + 1 : yn;
                 const tr = document.createElement("tr");
                 tr.className = "year-total-row";
                 tr.innerHTML =
                     `<td class="col-label" colspan="2">${year} total</td>` +
-                    `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}</td>` +
-                    `<td>${yMedian.toFixed(1)}</td>` +
+                    `<td>${yMean.toFixed(1)} ± ${ySd.toFixed(1)}${pctBadge(yMean, prevYear?.mean)}</td>` +
+                    `<td>${yMedian.toFixed(1)}${pctBadge(yMedian, prevYear?.median)}</td>` +
                     `<td>${yModes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${yModeCount})</span></td>` +
-                    `<td>${yMin.toFixed(1)} <span class="count">(×${yMinCount})</span></td>` +
-                    `<td>${yMax.toFixed(1)} <span class="count">(×${yMaxCount})</span></td>` +
-                    `<td>${year === firstEventYear ? yn + 1 : yn}</td>`;
+                    `<td>${yMin.toFixed(1)} <span class="count">(×${yMinCount})</span>${pctBadge(yMin, prevYear?.min)}</td>` +
+                    `<td>${yMax.toFixed(1)} <span class="count">(×${yMaxCount})</span>${pctBadge(yMax, prevYear?.max)}</td>` +
+                    `<td>${yAdjTotal}${pctBadge(yAdjTotal, prevYear?.total)}</td>`;
+                prevYear = { mean: yMean, median: yMedian, min: yMin, max: yMax, total: yAdjTotal };
                 tbody.appendChild(tr);
             }
         }
