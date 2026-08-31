@@ -68,8 +68,8 @@ function render() {
     emptyMsg.hidden = !isEmpty;
     canvas1.style.visibility = isEmpty ? "hidden" : "visible";
 
-    renderTable(filtered, fromVal, toVal);
-    renderGapTable(filtered);
+    renderTable(filtered, fromVal, toVal, finestType);
+    renderGapTable(filtered, finestType);
     chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked, typeBgBox.checked, milestoneBox.checked, +milestoneStepBox.value);
     updateFavicon();
     chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);

@@ -1,9 +1,12 @@
 /* global luxon */
 
 import { bucket, parseTs } from "./utils.js";
-import { computeMonthlyStats, computeGapStats } from "./data.js";
+import { computePeriodStats, computeGapStats } from "./data.js";
 
 const { DateTime } = luxon;
+
+// Row-label header text per selected chart bucket size.
+const PERIOD_HEADER = { daily: "Day", weekly: "Week", monthly: "Month" };
 
 /** Returns an inline coloured % badge relative to prev; empty string when no previous. */
 function pctBadge(current, prev) {
@@ -14,12 +17,13 @@ function pctBadge(current, prev) {
     return `<span class="${cls}">${sign}${pct.toFixed(1)}%</span>`;
 }
 
-//  Monthly stats table
+//  Period stats table
 
-export function renderTable(filtered, fromVal, toVal) {
+export function renderTable(filtered, fromVal, toVal, bucketType) {
     const container = document.getElementById("stats-table-container");
     const tbody = document.querySelector("#stats-table tbody");
-    const rows = computeMonthlyStats(filtered, fromVal, toVal);
+    document.querySelector("#stats-table thead th:nth-child(2)").textContent = PERIOD_HEADER[bucketType];
+    const rows = computePeriodStats(filtered, bucketType, fromVal, toVal);
 
     tbody.innerHTML = "";
     if (rows.length === 0) {
@@ -52,7 +56,7 @@ export function renderTable(filtered, fromVal, toVal) {
                 : "";
             tr.innerHTML =
                 yearCell +
-                `<td class="col-label">${row.month}</td>` +
+                `<td class="col-label">${row.label}</td>` +
                 `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}${pctBadge(row.mean, prevMon?.mean)}</td>` +
                 `<td>${row.median.toFixed(1)}${pctBadge(row.median, prevMon?.median)}</td>` +
                 `<td>${row.modes.join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
@@ -148,10 +152,11 @@ export function renderTable(filtered, fromVal, toVal) {
 
 //  Inter-event gap stats table
 
-export function renderGapTable(filtered) {
+export function renderGapTable(filtered, bucketType) {
     const container = document.getElementById("gap-table-container");
     const tbody = document.querySelector("#gap-table tbody");
-    const rows = computeGapStats(filtered);
+    document.querySelector("#gap-table thead th:nth-child(2)").textContent = PERIOD_HEADER[bucketType];
+    const rows = computeGapStats(filtered, bucketType);
 
     tbody.innerHTML = "";
     if (rows.length === 0) {
@@ -198,7 +203,7 @@ export function renderGapTable(filtered) {
                 : "";
             tr.innerHTML =
                 yearCell +
-                `<td class="col-label">${row.month}</td>` +
+                `<td class="col-label">${row.label}</td>` +
                 `<td>${row.mean.toFixed(1)} ± ${row.sd.toFixed(1)}${pctBadge(row.mean, prevMon?.mean)}</td>` +
                 `<td>${row.median.toFixed(1)}${pctBadge(row.median, prevMon?.median)}</td>` +
                 `<td>${row.modes.map(m => m.toFixed(1)).join(', ')} <span class="count">(×${row.modeCount})</span></td>` +
