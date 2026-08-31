@@ -22,9 +22,15 @@ header {
     background: #fff;
     border-bottom: 1px solid #ddd;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 1rem;
     align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+header>* {
+    flex-shrink: 0;
 }
 
 h1 {
@@ -43,9 +49,10 @@ h1 {
 
 .date-range {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 1rem;
+    flex-shrink: 0;
 }
 
 .control-group {
@@ -370,28 +377,6 @@ main {
     font-weight: 600;
     border-bottom: 2px solid #ddd;
     color: #444;
-}
-
-/* Small-screen header: stack each control row on its own line */
-@media (max-width: 600px) {
-
-    header h1,
-    header .date-range {
-        flex-basis: 100%;
-    }
-
-    header .btn-group {
-        align-self: start;
-        width: fit-content;
-    }
-
-    .date-range {
-        flex-wrap: nowrap;
-    }
-
-    .updated-label {
-        margin-left: 0;
-    }
 }
 
 #stats-table tbody tr:nth-child(even),
