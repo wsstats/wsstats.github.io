@@ -117,6 +117,25 @@ async function init() {
     dateFrom.addEventListener("change", render);
     dateTo.addEventListener("change", render);
 
+    document.getElementById("btn-all").addEventListener("click", () => {
+        dateFrom.value = days[0];
+        dateTo.value = days[days.length - 1];
+        render();
+    });
+    [7, 30, 90, 365].forEach(dayCount => {
+        document.getElementById(`btn-${dayCount}d`).addEventListener("click", () => {
+            const today = DateTime.now().startOf("day");
+            dateFrom.value = today.minus({ days: dayCount - 1 }).toISODate();
+            dateTo.value = today.toISODate();
+            render();
+        });
+    });
+    document.getElementById("btn-wtd").addEventListener("click", () => {
+        const today = DateTime.now();
+        dateFrom.value = today.startOf("week").toISODate();
+        dateTo.value = today.toISODate();
+        render();
+    });
     document.getElementById("btn-ytd").addEventListener("click", () => {
         const today = DateTime.now();
         dateFrom.value = today.startOf("year").toISODate();
