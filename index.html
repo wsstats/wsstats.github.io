@@ -234,6 +234,18 @@
                     Scale
                     <input type="number" id="decay-scale" min="0" step="0.1" value="1" />
                 </label>
+                <label class="cumsum-control">
+                    <input type="checkbox" id="decay-band-toggle" />
+                    Shade
+                </label>
+                <label class="spinbox-control">
+                    from
+                    <input type="time" id="decay-band-from" value="00:00" />
+                </label>
+                <label class="spinbox-control">
+                    to
+                    <input type="time" id="decay-band-to" value="07:00" />
+                </label>
                 <div class="chart-actions">
                     <button class="export-btn" aria-label="Copy chart as PNG" title="Copy to clipboard"
                         data-canvas="chart6">📷</button>

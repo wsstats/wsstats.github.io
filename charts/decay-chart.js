@@ -13,11 +13,67 @@ const TICK_FORMATS = {
     monthly: "MMM yyyy",
 };
 
+const BAND_COLOR = "rgba(30, 41, 59, 0.11)";
+const MIN_BAND_PX = 1.5;
+
+function toMinutes(value) {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value ?? "");
+    return match ? +match[1] * 60 + +match[2] : null;
+}
+
+/** Daily [start, end] ms ranges covering the given clock window, wrapping past midnight if needed. */
+function buildTimeBands(start, end, fromTime, toTime) {
+    const startMinute = toMinutes(fromTime);
+    const endMinute = toMinutes(toTime);
+    if (startMinute === null || endMinute === null || startMinute === endMinute) return [];
+
+    const bands = [];
+    let day = DateTime.fromMillis(start).startOf("day");
+    while (day.toMillis() <= end) {
+        const bandStart = day.plus({ minutes: startMinute }).toMillis();
+        const bandEnd = endMinute > startMinute
+            ? day.plus({ minutes: endMinute }).toMillis()
+            : day.plus({ days: 1 }).plus({ minutes: endMinute }).toMillis();
+        if (bandEnd > start && bandStart < end) {
+            bands.push([Math.max(bandStart, start), Math.min(bandEnd, end)]);
+        }
+        day = day.plus({ days: 1 });
+    }
+    return bands;
+}
+
+const timeBandPlugin = {
+    id: "timeBands",
+    beforeDatasetsDraw(chart) {
+        const bands = chart.options.plugins?.timeBands?.bands;
+        if (!bands?.length) return;
+
+        const xScale = chart.scales.x;
+        const { top, bottom, left, right } = chart.chartArea;
+        // Sub-pixel bands would overlap into a muddy uniform tint rather than a readable guide.
+        const [firstStart, firstEnd] = bands[0];
+        if (xScale.getPixelForValue(firstEnd) - xScale.getPixelForValue(firstStart) < MIN_BAND_PX) return;
+
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(left, top, right - left, bottom - top);
+        ctx.clip();
+        ctx.fillStyle = BAND_COLOR;
+        for (const [bandStart, bandEnd] of bands) {
+            const x1 = xScale.getPixelForValue(bandStart);
+            const x2 = xScale.getPixelForValue(bandEnd);
+            if (x2 >= left && x1 <= right) ctx.fillRect(x1, top, x2 - x1, bottom - top);
+        }
+        ctx.restore();
+    },
+};
+
 /**
  * Event decay: every event adds 1 unit to an abstract variable that decays with the given
  * half-life. Only the shape matters, so the series is normalised to its own peak.
  */
-export function renderDecayChart(oldChart, canvas, filtered, bucketType, halfLifeMinutes, fromVal, toVal, scale = 1) {
+export function renderDecayChart(oldChart, canvas, filtered, bucketType, halfLifeMinutes, fromVal, toVal, scale = 1, showBands = false, bandFrom = "00:00", bandTo = "06:00") {
     if (oldChart) oldChart.destroy();
     if (filtered.length === 0 || !(halfLifeMinutes > 0)) return null;
 
@@ -66,9 +122,11 @@ export function renderDecayChart(oldChart, canvas, filtered, bucketType, halfLif
     }
 
     const tickFormat = TICK_FORMATS[bucketType] ?? TICK_FORMATS.daily;
+    const bands = showBands ? buildTimeBands(start, end, bandFrom, bandTo) : [];
 
     return new Chart(canvas, {
         type: "line",
+        plugins: [timeBandPlugin],
         data: {
             datasets: [{
                 label: "Decayed activity",
@@ -89,6 +147,7 @@ export function renderDecayChart(oldChart, canvas, filtered, bucketType, halfLif
             interaction: { mode: "nearest", axis: "x", intersect: false },
             plugins: {
                 legend: { display: false },
+                timeBands: { bands },
                 tooltip: {
                     callbacks: {
                         title(items) {

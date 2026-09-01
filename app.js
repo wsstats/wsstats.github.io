@@ -28,6 +28,9 @@ const clusterMinEventsBox = document.getElementById("cluster-min-events");
 const clusterMaxGapBox = document.getElementById("cluster-max-gap");
 const decayHalfLifeBox = document.getElementById("decay-halflife");
 const decayScaleBox = document.getElementById("decay-scale");
+const decayBandBox = document.getElementById("decay-band-toggle");
+const decayBandFromBox = document.getElementById("decay-band-from");
+const decayBandToBox = document.getElementById("decay-band-to");
 const emptyMsg = document.getElementById("empty-msg");
 const canvas1 = document.getElementById("chart1");
 const canvas2 = document.getElementById("chart2");
@@ -79,7 +82,7 @@ function render() {
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, bucketType);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, bucketType, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
     chart5 = renderClusterChart(chart5, canvas5, filtered, bucketType, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
-    chart6 = renderDecayChart(chart6, canvas6, filtered, bucketType, +decayHalfLifeBox.value, fromVal, toVal, +decayScaleBox.value);
+    chart6 = renderDecayChart(chart6, canvas6, filtered, bucketType, +decayHalfLifeBox.value, fromVal, toVal, +decayScaleBox.value, decayBandBox.checked, decayBandFromBox.value, decayBandToBox.value);
 }
 
 function updateFavicon() {
@@ -170,6 +173,9 @@ async function init() {
     clusterMaxGapBox.addEventListener("change", render);
     decayHalfLifeBox.addEventListener("change", render);
     decayScaleBox.addEventListener("change", render);
+    decayBandBox.addEventListener("change", render);
+    decayBandFromBox.addEventListener("change", render);
+    decayBandToBox.addEventListener("change", render);
 
     // Info panel toggle
     document.querySelector("main").addEventListener("click", e => {
