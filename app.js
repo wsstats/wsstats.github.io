@@ -7,6 +7,7 @@ import {
     renderIntensityChart,
     renderSumFrequencyChart,
     renderClusterChart,
+    renderDecayChart,
 } from "./charts/index.js";
 import { renderTable, renderGapTable } from "./tables.js";
 
@@ -25,12 +26,15 @@ const gapMeanBox = document.getElementById("gap-mean-toggle");
 const gapMedianBox = document.getElementById("gap-median-toggle");
 const clusterMinEventsBox = document.getElementById("cluster-min-events");
 const clusterMaxGapBox = document.getElementById("cluster-max-gap");
+const decayHalfLifeBox = document.getElementById("decay-halflife");
+const decayScaleBox = document.getElementById("decay-scale");
 const emptyMsg = document.getElementById("empty-msg");
 const canvas1 = document.getElementById("chart1");
 const canvas2 = document.getElementById("chart2");
 const canvas3 = document.getElementById("chart3");
 const canvas4 = document.getElementById("chart4");
 const canvas5 = document.getElementById("chart5");
+const canvas6 = document.getElementById("chart6");
 
 //  State
 let rawData = [];  // [{timestamp: string, value: number}, ...]
@@ -39,6 +43,7 @@ let chart2 = null;
 let chart3 = null;
 let chart4 = null;
 let chart5 = null;
+let chart6 = null;
 
 //  Helpers
 
@@ -74,6 +79,7 @@ function render() {
     chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, bucketType);
     chart4 = renderInterarrivalChart(chart4, canvas4, filtered, bucketType, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
     chart5 = renderClusterChart(chart5, canvas5, filtered, bucketType, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
+    chart6 = renderDecayChart(chart6, canvas6, filtered, bucketType, +decayHalfLifeBox.value, fromVal, toVal, +decayScaleBox.value);
 }
 
 function updateFavicon() {
@@ -162,6 +168,8 @@ async function init() {
     gapMedianBox.addEventListener("change", render);
     clusterMinEventsBox.addEventListener("change", render);
     clusterMaxGapBox.addEventListener("change", render);
+    decayHalfLifeBox.addEventListener("change", render);
+    decayScaleBox.addEventListener("change", render);
 
     // Info panel toggle
     document.querySelector("main").addEventListener("click", e => {
