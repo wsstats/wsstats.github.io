@@ -1,7 +1,7 @@
 /* global luxon */
 
-import { bucket, parseTs } from "./utils.js";
-import { computePeriodStats, computeGapStats } from "./data.js";
+import { bucket } from "./utils.js";
+import { computePeriodStats, computeGapStats, computeInterarrivalGaps } from "./data.js";
 
 const { DateTime } = luxon;
 
@@ -172,21 +172,15 @@ export function renderGapTable(filtered, bucketType) {
     }
     const multiYear = rowsByYear.size > 1;
 
-    const sortedFull = [...filtered].sort((a, b) =>
-        parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
-    );
-    const firstEventYear = parseTs(sortedFull[0].timestamp).year;
-    const allGaps = [];
+    const gapRecords = computeInterarrivalGaps(filtered);
+    const firstEventYear = gapRecords[0].previous.year;
+    const allGaps = gapRecords.map(gap => gap.hours);
     const gapsByYear = new Map();
-    for (let i = 1; i < sortedFull.length; i++) {
-        const prev = parseTs(sortedFull[i - 1].timestamp);
-        const curr = parseTs(sortedFull[i].timestamp);
-        const gapH = curr.diff(prev, "hours").hours;
-        allGaps.push(gapH);
+    for (const { current, hours } of gapRecords) {
         if (multiYear) {
-            const yr = curr.year;
+            const yr = current.year;
             if (!gapsByYear.has(yr)) gapsByYear.set(yr, []);
-            gapsByYear.get(yr).push(gapH);
+            gapsByYear.get(yr).push(hours);
         }
     }
 

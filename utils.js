@@ -2,6 +2,8 @@
 
 const { DateTime } = luxon;
 
+export const BUCKET_TYPES = ["daily", "weekly", "monthly"];
+
 /** Parse ISO timestamp string → Luxon DateTime (local-time, no zone shift). */
 export function parseTs(ts) {
     return DateTime.fromISO(ts);
@@ -88,21 +90,4 @@ export function fillGaps(map, type) {
         cur = nextBucketKey(cur, type);
     }
     return filled;
-}
-
-/** Map a Luxon DateTime to one of seven time-of-day bucket labels. */
-export function todBucket(dt) {
-    const h = dt.hour;
-    if (h < 6) return "00–06";
-    if (h < 9) return "06–09";
-    if (h < 12) return "09–12";
-    if (h < 15) return "12–15";
-    if (h < 18) return "15–18";
-    if (h < 21) return "18–21";
-    return "21–24";
-}
-
-/** Map a Luxon DateTime to a zero-padded hourly label ("00"–"23"). */
-export function todBucketHour(dt) {
-    return pad2(dt.hour);
 }

@@ -1,14 +1,13 @@
 /* global luxon, Chart */
 
-import { bucket } from "./utils.js";
+import { BUCKET_TYPES, bucket } from "./utils.js";
 import {
-    BUCKET_TYPES,
     renderTodChart,
     renderInterarrivalChart,
     renderIntensityChart,
     renderSumFrequencyChart,
     renderClusterChart,
-} from "./charts.js";
+} from "./charts/index.js";
 import { renderTable, renderGapTable } from "./tables.js";
 
 const { DateTime } = luxon;
@@ -43,11 +42,11 @@ let chart5 = null;
 
 //  Helpers
 
-/** Returns the selected bucket type as a single-element array; falls back to daily. */
-function getActiveBuckets() {
-    return [BUCKET_TYPES.find(t =>
+/** Returns the selected bucket type; falls back to daily. */
+function getActiveBucket() {
+    return BUCKET_TYPES.find(t =>
         document.getElementById(`bucket-${t}`).checked
-    ) ?? "daily"];
+    ) ?? "daily";
 }
 
 //  Render
@@ -61,21 +60,20 @@ function render() {
         return (!fromVal || day >= fromVal) && (!toVal || day <= toVal);
     });
 
-    const activeBuckets = getActiveBuckets();
-    const finestType = activeBuckets[0];
+    const bucketType = getActiveBucket();
 
-    const isEmpty = bucket(filtered, finestType).size === 0;
+    const isEmpty = bucket(filtered, bucketType).size === 0;
     emptyMsg.hidden = !isEmpty;
     canvas1.style.visibility = isEmpty ? "hidden" : "visible";
 
-    renderTable(filtered, fromVal, toVal, finestType);
-    renderGapTable(filtered, finestType);
-    chart1 = renderTodChart(chart1, canvas1, filtered, activeBuckets, cumsumBox.checked, barsBox.checked, typeBgBox.checked, milestoneBox.checked, +milestoneStepBox.value);
+    renderTable(filtered, fromVal, toVal, bucketType);
+    renderGapTable(filtered, bucketType);
+    chart1 = renderTodChart(chart1, canvas1, filtered, bucketType, cumsumBox.checked, barsBox.checked, typeBgBox.checked, milestoneBox.checked, +milestoneStepBox.value);
     updateFavicon();
-    chart2 = renderIntensityChart(chart2, canvas2, filtered, activeBuckets);
-    chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, activeBuckets);
-    chart4 = renderInterarrivalChart(chart4, canvas4, filtered, activeBuckets, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
-    chart5 = renderClusterChart(chart5, canvas5, filtered, activeBuckets, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
+    chart2 = renderIntensityChart(chart2, canvas2, filtered, bucketType);
+    chart3 = renderSumFrequencyChart(chart3, canvas3, filtered, bucketType);
+    chart4 = renderInterarrivalChart(chart4, canvas4, filtered, bucketType, gapMaxBox.checked, gapMeanBox.checked, gapMedianBox.checked);
+    chart5 = renderClusterChart(chart5, canvas5, filtered, bucketType, +clusterMinEventsBox.value, +clusterMaxGapBox.value);
 }
 
 function updateFavicon() {

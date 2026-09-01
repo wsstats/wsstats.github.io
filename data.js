@@ -11,6 +11,21 @@ function periodLabel(bucketType, periodStart, periodEnd) {
     return periodStart.toFormat("LLL d"); // daily
 }
 
+/** Consecutive inter-event gaps, ordered by timestamp and attributed to the later event. */
+export function computeInterarrivalGaps(filtered) {
+    const sorted = [...filtered].sort((a, b) =>
+        parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
+    );
+
+    const gaps = [];
+    for (let i = 1; i < sorted.length; i++) {
+        const previous = parseTs(sorted[i - 1].timestamp);
+        const current = parseTs(sorted[i].timestamp);
+        gaps.push({ previous, current, hours: current.diff(previous, "hours").hours });
+    }
+    return gaps;
+}
+
 /**
  * Compute per-period aggregate stats based on daily buckets in the date range.
  * Days present in the range but absent from the data count as 0.
@@ -91,16 +106,9 @@ export function computePeriodStats(filtered, bucketType, fromVal, toVal) {
 export function computeGapStats(filtered, bucketType) {
     if (filtered.length < 2) return [];
 
-    const sorted = [...filtered].sort((a, b) =>
-        parseTs(a.timestamp).toMillis() - parseTs(b.timestamp).toMillis()
-    );
-
     const byPeriod = new Map();
-    for (let i = 1; i < sorted.length; i++) {
-        const prev = parseTs(sorted[i - 1].timestamp);
-        const curr = parseTs(sorted[i].timestamp);
-        const gapHours = curr.diff(prev, "hours").hours;
-        const key = bucketKey(curr, bucketType);
+    for (const { current, hours } of computeInterarrivalGaps(filtered)) {
+        const key = bucketKey(current, bucketType);
         if (!byPeriod.has(key)) {
             const periodStart = parseKey(key, bucketType);
             const periodEnd = bucketType === "monthly" ? periodStart.endOf("month")
@@ -108,7 +116,7 @@ export function computeGapStats(filtered, bucketType) {
                     : periodStart; // daily
             byPeriod.set(key, { year: periodStart.year, label: periodLabel(bucketType, periodStart, periodEnd), gaps: [] });
         }
-        byPeriod.get(key).gaps.push(gapHours);
+        byPeriod.get(key).gaps.push(hours);
     }
 
     const rows = [];
