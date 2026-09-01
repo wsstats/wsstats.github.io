@@ -154,7 +154,7 @@ export const milestoneLinesPlugin = {
         ctx.setLineDash([4, 3]);
         ctx.font = "10px sans-serif";
         ctx.fillStyle = "rgba(17, 24, 39, 0.75)";
-        ctx.textAlign = "left";
+        ctx.textAlign = "right";
         ctx.textBaseline = "top";
 
         const byIndex = new Map();
@@ -170,8 +170,8 @@ export const milestoneLinesPlugin = {
             ctx.moveTo(x, yScale.top);
             ctx.lineTo(x, yScale.bottom);
             ctx.stroke();
-            ctx.fillText(String(value), x + 3, yScale.top + 2);
-            ctx.fillText(`+${days}d`, x + 3, yScale.top + 13);
+            ctx.fillText(String(value), x - 3, yScale.top + 2);
+            ctx.fillText(`+${days}d`, x - 3, yScale.top + 13);
         }
         ctx.restore();
     },
