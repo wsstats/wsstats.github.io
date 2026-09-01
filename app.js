@@ -10,6 +10,7 @@ import {
     renderDecayChart,
 } from "./charts/index.js";
 import { renderTable, renderGapTable } from "./tables.js";
+import { buildChartCaption, drawCaption } from "./charts/export-caption.js";
 
 const { DateTime } = luxon;
 
@@ -260,14 +261,24 @@ document.querySelectorAll(".chart-resizer").forEach(resizer => {
 });
 
 // PNG export buttons
-function copyChartToPng(canvas, btn) {
+function copyChartToPng(canvas, btn, headerEl) {
+    const dpr = canvas.clientWidth ? canvas.width / canvas.clientWidth : 1;
+    const cssWidth = canvas.width / dpr;
+    const caption = buildChartCaption(headerEl);
+
     const tmp = document.createElement("canvas");
-    tmp.width = canvas.width;
-    tmp.height = canvas.height;
     const ctx = tmp.getContext("2d");
+    const captionHeight = drawCaption(ctx, caption, cssWidth, true);
+
+    tmp.width = canvas.width;
+    tmp.height = canvas.height + Math.round(captionHeight * dpr);
     ctx.fillStyle = "#ffffff"; // white background
     ctx.fillRect(0, 0, tmp.width, tmp.height);
-    ctx.drawImage(canvas, 0, 0);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    drawCaption(ctx, caption, cssWidth);
+    ctx.restore();
+    ctx.drawImage(canvas, 0, Math.round(captionHeight * dpr));
     tmp.toBlob(blob => {
         navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
             const prev = btn.textContent;
@@ -284,6 +295,6 @@ function copyChartToPng(canvas, btn) {
 document.querySelectorAll(".export-btn").forEach(btn => {
     btn.addEventListener("click", () => {
         const canvas = document.getElementById(btn.dataset.canvas);
-        if (canvas) copyChartToPng(canvas, btn);
+        if (canvas) copyChartToPng(canvas, btn, btn.closest(".chart-header"));
     });
 });
