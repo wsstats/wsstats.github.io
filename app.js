@@ -101,9 +101,12 @@ function updateFavicon() {
 //  Initialise
 
 async function init() {
-    const resp = await fetch("data.json");
-    if (!resp.ok) throw new Error(`Failed to load data.json: ${resp.status}`);
-    rawData = await resp.json();
+    const resp = await fetch("data.jsonl");
+    if (!resp.ok) throw new Error(`Failed to load data.jsonl: ${resp.status}`);
+    rawData = (await resp.text())
+        .split(/\r?\n/)
+        .filter(line => line.trim())
+        .map(line => JSON.parse(line));
 
     if (rawData.length === 0) {
         emptyMsg.hidden = false;
